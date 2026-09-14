@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -12,6 +13,7 @@ import tempfile
 from pathlib import Path
 
 from code_erosion import baseline as baseline_mod
+from code_erosion import history as history_mod
 from code_erosion.core import (
     AstHit,
     ParseError,
@@ -196,6 +198,18 @@ def main(argv: list[str] | None = None) -> int:
                         help="Report the diff but never fail, even past the threshold")
     parser.add_argument("--comment-out", type=Path, metavar="PATH",
                         help="Write the markdown gate report to PATH (for PR comments)")
+    parser.add_argument("--record-history", type=Path, metavar="PATH",
+                        help="Append this scan as one JSONL record to PATH (trend history)")
+    parser.add_argument("--sha", default=os.environ.get("GITHUB_SHA", "unknown"),
+                        help="Commit SHA recorded by --record-history "
+                             "(default: $GITHUB_SHA or 'unknown')")
+    parser.add_argument("--date", default=None, metavar="ISO_DATE",
+                        help="Timestamp recorded by --record-history (default: now, UTC)")
+    parser.add_argument("--write-badge", type=Path, metavar="PATH",
+                        help="Write a shields.io endpoint badge JSON for this scan to PATH")
+    parser.add_argument("--history", type=Path, metavar="PATH",
+                        help="Committed history file; adds a trend section to the "
+                             "markdown gate report")
     args = parser.parse_args(argv)
 
     if not args.path.exists():
@@ -205,11 +219,24 @@ def main(argv: list[str] | None = None) -> int:
     if report.files_scanned == 0:
         print(f"no Python/TypeScript files could be parsed at {args.path}", file=sys.stderr)
         return 2
+    report_json = _report_json(report)
     if args.json:
-        json.dump(_report_json(report), sys.stdout, indent=2, default=str)
+        json.dump(report_json, sys.stdout, indent=2, default=str)
         print()
     elif not args.check_baseline:
         _print_human(report, args.verbose)
+
+    if args.record_history:
+        record = history_mod.history_record(report_json, sha=args.sha, date=args.date)
+        history_mod.append_history(args.record_history, record)
+        print(
+            f"history: recorded erosion {record['erosion']:.3f} "
+            f"@ {record['sha'][:7]} in {args.record_history}"
+        )
+
+    if args.write_badge:
+        badge = history_mod.write_badge(args.write_badge, report_json)
+        print(f"badge written to {args.write_badge} (erosion {badge['message']}, {badge['color']})")
 
     if args.write_baseline:
         snapshot = baseline_mod.write_baseline(_report_json(report), args.write_baseline)
@@ -225,12 +252,15 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         result = baseline_mod.diff_against_baseline(
             baseline_mod.load_baseline(args.check_baseline),
-            _report_json(report),
+            report_json,
             args.threshold,
         )
         mode = "informational" if args.informational else "gate"
+        trend = ""
+        if args.history:
+            trend = history_mod.render_trend_markdown(history_mod.load_history(args.history))
         markdown = baseline_mod.render_markdown(
-            result, baseline_path=str(args.check_baseline), mode=mode
+            result, baseline_path=str(args.check_baseline), mode=mode, trend=trend
         )
         if args.comment_out:
             args.comment_out.write_text(markdown, encoding="utf-8")
