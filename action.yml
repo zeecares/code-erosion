@@ -2,7 +2,9 @@ name: code-erosion
 description: >-
   Score a repo with the SlopCodeBench verbosity/erosion metrics, diff against
   the committed baseline, post the delta as a PR comment, and (in gate mode)
-  fail the check when erosion regresses past the threshold.
+  fail the check when erosion regresses past the threshold. On pushes to the
+  default branch it can also record the scan to a committed trend-history file
+  and update a README badge.
 branding:
   icon: activity
   color: orange
@@ -29,6 +31,23 @@ inputs:
     description: Post or update the PR comment (pull_request events only).
     required: false
     default: "true"
+  history:
+    description: >-
+      Trend-history file, committed in the scanned repo. On push events the
+      scan is appended to it and committed back (needs `permissions:
+      contents: write`, and a default branch the Actions app may push to);
+      on pull requests the report comment gains a trend section when the file
+      exists. Set to "" to disable.
+    required: false
+    default: ".code-erosion-history.jsonl"
+  badge:
+    description: >-
+      Optional shields.io endpoint badge file (e.g. ".code-erosion-badge.json"),
+      rewritten on push events and committed back with the history. Point a
+      README image at https://img.shields.io/endpoint?url=<raw-url>. Empty
+      disables the badge.
+    required: false
+    default: ""
   python-version:
     description: Python version for the scanner.
     required: false
@@ -53,10 +72,13 @@ runs:
         BASELINE: ${{ inputs.baseline }}
         MODE: ${{ inputs.mode }}
         THRESHOLD: ${{ inputs.threshold }}
+        HISTORY: ${{ inputs.history }}
       run: |
         set -u
         comment="$RUNNER_TEMP/code-erosion-comment.md"
         echo "CODE_EROSION_COMMENT=$comment" >> "$GITHUB_ENV"
+        hist_arg=""
+        if [ -n "$HISTORY" ] && [ -f "$HISTORY" ]; then hist_arg="--history $HISTORY"; fi
         if [ ! -f "$BASELINE" ]; then
           echo "No baseline at $BASELINE - generating a seed for you to commit."
           code-erosion "$SCAN_PATH" --write-baseline "$BASELINE" --json > /dev/null
@@ -75,12 +97,42 @@ runs:
         if [ "$MODE" = "informational" ]; then extra="--informational"; fi
         set +e
         code-erosion "$SCAN_PATH" --check-baseline "$BASELINE" \
-          --threshold "$THRESHOLD" $extra --comment-out "$comment" > /dev/null
+          --threshold "$THRESHOLD" $extra $hist_arg --comment-out "$comment" > /dev/null
         status=$?
         set -e
         if [ $status -ne 0 ]; then
           echo "::error::code-erosion gate failed - see the job summary and PR comment for the diff."
           exit $status
+        fi
+
+    - name: Record trend history
+      if: github.event_name == 'push' && inputs.history != ''
+      shell: bash
+      env:
+        SCAN_PATH: ${{ inputs.path }}
+        HISTORY: ${{ inputs.history }}
+        BADGE: ${{ inputs.badge }}
+      run: |
+        set -u
+        if ! code-erosion "$SCAN_PATH" --record-history "$HISTORY" --sha "$GITHUB_SHA" \
+            ${BADGE:+--write-badge "$BADGE"} > /dev/null; then
+          echo "::warning::code-erosion: history recording failed; the gate result is unaffected."
+          exit 0
+        fi
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add "$HISTORY" ${BADGE:+"$BADGE"}
+        if git diff --cached --quiet; then
+          echo "code-erosion: history already up to date."
+          exit 0
+        fi
+        git commit --quiet -m "code-erosion: record scan ${GITHUB_SHA:0:7} [skip ci]"
+        if git push origin "HEAD:$GITHUB_REF_NAME" 2>/dev/null; then
+          echo "code-erosion: trend history committed."
+        elif git pull --rebase --autostash 2>/dev/null && git push origin "HEAD:$GITHUB_REF_NAME" 2>/dev/null; then
+          echo "code-erosion: trend history committed after rebase."
+        else
+          echo "::warning::code-erosion: could not commit the trend history. The workflow needs 'permissions: contents: write', and a protected default branch must allow the Actions app to push. The scan and gate are unaffected."
         fi
 
     - name: Write job summary

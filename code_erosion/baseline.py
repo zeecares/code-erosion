@@ -176,7 +176,7 @@ def _fmt_delta(value: float, digits: int = 3) -> str:
     return f"{value:+.{digits}f}"
 
 
-def render_markdown(result: CheckResult, *, baseline_path: str, mode: str) -> str:
+def render_markdown(result: CheckResult, *, baseline_path: str, mode: str, trend: str = "") -> str:
     base_m = result.baseline["metrics"]
     cur_m = result.current["metrics"]
     lines = [
@@ -225,6 +225,8 @@ def render_markdown(result: CheckResult, *, baseline_path: str, mode: str) -> st
             lines += ["", "**Biggest verbosity movement (per file):**", "", "| file | was | now |", "|---|---|---|"]
             for path, was, now in result.verbosity_movers:
                 lines.append(f"| `{path}` | {was:.3f} | {now:.3f} |")
+    if trend:
+        lines.append(trend.rstrip("\n"))
     lines += [
         "",
         "---",
