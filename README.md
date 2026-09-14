@@ -84,10 +84,44 @@ is visible in the PR diff - that is the review hook, by design.
 warns any single metric dies once optimized for (Goodhart), so the gate watches
 *movement*, it does not grade the codebase. Reference bands are
 Python-calibrated; TypeScript scores come from an adapted rule set and are
-directionally right, not lab-grade. This repo is private: the action is shared
-with your other private repos via Settings > Actions > General > Access
-("accessible from repositories owned by you"); public release needs a mirror or
-a published tag.
+directionally right, not lab-grade. The repo is public: use `zeecares/code-erosion@main`
+from any repository, and pin to a tag or SHA for production.
+
+### Trend history and README badge (R4)
+
+The gate tells you a PR moved the score; the trend tells you where the repo is
+going. With the `history` input at its default (`.code-erosion-history.jsonl`):
+
+1. On every push to the default branch, the action appends one JSON record
+   (date, commit SHA, verbosity, erosion, SLOC, high-CC function count) to the
+   history file and commits it back (`[skip ci]`, so no workflow loop).
+2. On PRs, when the committed history exists, the report comment gains a trend
+   section: direction (improving / worsening / flat) and the last few
+   default-branch scans.
+3. The file is plain JSONL, one scan per line - chart it with anything.
+
+Committing the history needs more than the minimal permissions above:
+
+```yaml
+permissions:
+  contents: write      # to commit the history file back on push
+  pull-requests: write # to post the report comment
+```
+
+Two honest limits: if the workflow keeps `contents: read`, or branch
+protection blocks the Actions app from pushing to the default branch, the
+history step records in the workspace and posts a warning instead of failing -
+the scan and gate are unaffected. Set `history: ""` to turn the feature off
+entirely.
+
+For a README badge, opt in with `badge: ".code-erosion-badge.json"`; the action
+rewrites it on each push with a shields.io endpoint payload - the score plus a
+color from the reference bands (green at/below the human band, red past the
+agent band). Embed it with:
+
+```md
+![code erosion](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<owner>/<repo>/main/.code-erosion-badge.json)
+```
 
 ## Method fidelity
 
