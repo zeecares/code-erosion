@@ -11,6 +11,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+from code_erosion import baseline as baseline_mod
 from code_erosion.core import (
     AstHit,
     ParseError,
@@ -184,6 +185,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--verbose", "-v", action="store_true",
                         help="Per-file verbosity table and per-function mass table")
     parser.add_argument("--json", action="store_true", help="Emit the full report as JSON")
+    parser.add_argument("--write-baseline", type=Path, metavar="PATH",
+                        help="Write a baseline snapshot of this scan to PATH")
+    parser.add_argument("--check-baseline", type=Path, metavar="PATH",
+                        help="Diff this scan against the baseline at PATH (CI gate)")
+    parser.add_argument("--threshold", type=float, default=baseline_mod.DEFAULT_THRESHOLD,
+                        help="Allowed absolute erosion regression before the gate fails "
+                             f"(default: {baseline_mod.DEFAULT_THRESHOLD})")
+    parser.add_argument("--informational", action="store_true",
+                        help="Report the diff but never fail, even past the threshold")
+    parser.add_argument("--comment-out", type=Path, metavar="PATH",
+                        help="Write the markdown gate report to PATH (for PR comments)")
     args = parser.parse_args(argv)
 
     if not args.path.exists():
@@ -196,8 +208,43 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         json.dump(_report_json(report), sys.stdout, indent=2, default=str)
         print()
-    else:
+    elif not args.check_baseline:
         _print_human(report, args.verbose)
+
+    if args.write_baseline:
+        snapshot = baseline_mod.write_baseline(_report_json(report), args.write_baseline)
+        print(
+            f"baseline written to {args.write_baseline} "
+            f"({snapshot['metrics']['files_scanned']} files, "
+            f"{len(snapshot['functions'])} functions)"
+        )
+
+    if args.check_baseline:
+        if not args.check_baseline.exists():
+            print(f"baseline not found: {args.check_baseline}", file=sys.stderr)
+            return 2
+        result = baseline_mod.diff_against_baseline(
+            baseline_mod.load_baseline(args.check_baseline),
+            _report_json(report),
+            args.threshold,
+        )
+        mode = "informational" if args.informational else "gate"
+        markdown = baseline_mod.render_markdown(
+            result, baseline_path=str(args.check_baseline), mode=mode
+        )
+        if args.comment_out:
+            args.comment_out.write_text(markdown, encoding="utf-8")
+        if not args.json:
+            _print_human(report, args.verbose)
+            print()
+            print(markdown)
+        if not result.gate_pass and not args.informational:
+            print(
+                f"code-erosion gate: erosion regressed {result.erosion_delta:+.3f} "
+                f"(threshold +{args.threshold:.3f})",
+                file=sys.stderr,
+            )
+            return 1
     return 0
 
 
