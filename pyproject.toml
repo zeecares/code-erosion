@@ -1,9 +1,9 @@
 [project]
 name = "code-erosion"
-version = "0.2.0"
+version = "0.2.1"
 description = "Measure code verbosity and structural erosion (SlopCodeBench metrics) for Python and TypeScript repos"
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
     "tree-sitter>=0.25,<0.26",
@@ -16,5 +16,5 @@ dependencies = [
 code-erosion = "code_erosion.cli:main"
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
