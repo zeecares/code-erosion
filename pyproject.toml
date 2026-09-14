@@ -1,6 +1,6 @@
 [project]
 name = "code-erosion"
-version = "0.2.1"
+version = "0.2.2"
 description = "Measure code verbosity and structural erosion (SlopCodeBench metrics) for Python and TypeScript repos"
 readme = "README.md"
 license = "MIT"
@@ -18,3 +18,6 @@ code-erosion = "code_erosion.cli:main"
 [build-system]
 requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["code_erosion"]
