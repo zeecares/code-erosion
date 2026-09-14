@@ -27,6 +27,68 @@ python -m code_erosion /path/to/repo --json      # machine-readable report
 Scans `.py` and `.ts/.tsx/.js/.jsx/.mts/.cts/.mjs/.cjs` files, skipping
 `.git`, `node_modules`, build output, caches, and virtualenvs.
 
+
+## CI gate (GitHub Action)
+
+This repo is itself a composite GitHub Action. Add it to any repository you
+want monitored:
+
+```yaml
+# .github/workflows/code-erosion.yml
+name: code-erosion
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  pull-requests: write   # to post the report comment
+jobs:
+  erosion:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: zeecares/code-erosion@main   # pin to a tag or SHA for production
+        with:
+          mode: gate          # 'informational' (default) never fails; 'gate' enforces
+          threshold: "0.01"   # allowed absolute erosion regression
+```
+
+What it does on each PR:
+
+1. Scans the checkout (same engine as the CLI).
+2. Diffs against the committed baseline (default `.code-erosion.json`):
+   repo-level verbosity/erosion deltas, new and resolved high-complexity
+   functions, and the biggest per-function erosion-mass movers.
+3. Posts or updates one PR comment with the delta (the report also lands in
+   the job summary, so a token without `pull-requests: write` only loses the
+   comment, not the gate).
+4. In `mode: gate`, fails the check when erosion regresses beyond the
+   threshold. In `mode: informational` (the default) it only reports.
+
+**Bootstrap.** With no baseline committed, the action generates a seed at the
+baseline path and tells you to commit it; nothing fails. You can also generate
+one locally:
+
+```bash
+code-erosion . --write-baseline .code-erosion.json
+```
+
+**Intentional movement.** When a PR legitimately changes the score (a refactor,
+a big generated file), regenerate the baseline and commit it in the same PR:
+the gate passes and the reviewer sees the new baseline in the diff, with the
+comment still showing the movement against the old one. A silent baseline bump
+is visible in the PR diff - that is the review hook, by design.
+
+**Honest limits.** The score is a tripwire, not a target - the source post
+warns any single metric dies once optimized for (Goodhart), so the gate watches
+*movement*, it does not grade the codebase. Reference bands are
+Python-calibrated; TypeScript scores come from an adapted rule set and are
+directionally right, not lab-grade. This repo is private: the action is shared
+with your other private repos via Settings > Actions > General > Access
+("accessible from repositories owned by you"); public release needs a mirror or
+a published tag.
+
 ## Method fidelity
 
 The Python engine replicates **scb-check 0.1.3** (the reference implementation

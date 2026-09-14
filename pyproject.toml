@@ -1,6 +1,6 @@
 [project]
 name = "code-erosion"
-version = "0.1.0"
+version = "0.2.0"
 description = "Measure code verbosity and structural erosion (SlopCodeBench metrics) for Python and TypeScript repos"
 readme = "README.md"
 license = { text = "MIT" }

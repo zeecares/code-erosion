@@ -1,0 +1,122 @@
+name: code-erosion
+description: >-
+  Score a repo with the SlopCodeBench verbosity/erosion metrics, diff against
+  the committed baseline, post the delta as a PR comment, and (in gate mode)
+  fail the check when erosion regresses past the threshold.
+branding:
+  icon: activity
+  color: orange
+inputs:
+  path:
+    description: Directory to scan, relative to the checkout root.
+    required: false
+    default: "."
+  baseline:
+    description: Baseline file, committed in the scanned repo.
+    required: false
+    default: ".code-erosion.json"
+  mode:
+    description: >-
+      "informational" posts the report and never fails; "gate" fails the check
+      when erosion regresses beyond the threshold.
+    required: false
+    default: "informational"
+  threshold:
+    description: Allowed absolute erosion regression in gate mode.
+    required: false
+    default: "0.01"
+  comment:
+    description: Post or update the PR comment (pull_request events only).
+    required: false
+    default: "true"
+  python-version:
+    description: Python version for the scanner.
+    required: false
+    default: "3.12"
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install code-erosion
+      shell: bash
+      run: python -m pip install --quiet "${{ github.action_path }}"
+
+    - name: Scan and compare
+      id: compare
+      shell: bash
+      env:
+        SCAN_PATH: ${{ inputs.path }}
+        BASELINE: ${{ inputs.baseline }}
+        MODE: ${{ inputs.mode }}
+        THRESHOLD: ${{ inputs.threshold }}
+      run: |
+        set -u
+        comment="$RUNNER_TEMP/code-erosion-comment.md"
+        echo "CODE_EROSION_COMMENT=$comment" >> "$GITHUB_ENV"
+        if [ ! -f "$BASELINE" ]; then
+          echo "No baseline at $BASELINE - generating a seed for you to commit."
+          code-erosion "$SCAN_PATH" --write-baseline "$BASELINE" --json > /dev/null
+          {
+            echo "<!-- code-erosion-report -->"
+            echo "## code-erosion report"
+            echo ""
+            echo "No baseline was committed at \`$BASELINE\`, so there is nothing to gate on yet."
+            echo "A seed baseline has been generated at that path in this run's workspace -"
+            echo "re-run locally with \`code-erosion . --write-baseline $BASELINE\`, commit the"
+            echo "file, and future PRs will diff and gate against it."
+          } > "$comment"
+          exit 0
+        fi
+        extra=""
+        if [ "$MODE" = "informational" ]; then extra="--informational"; fi
+        set +e
+        code-erosion "$SCAN_PATH" --check-baseline "$BASELINE" \
+          --threshold "$THRESHOLD" $extra --comment-out "$comment" > /dev/null
+        status=$?
+        set -e
+        if [ $status -ne 0 ]; then
+          echo "::error::code-erosion gate failed - see the job summary and PR comment for the diff."
+          exit $status
+        fi
+
+    - name: Write job summary
+      if: always()
+      shell: bash
+      run: cat "$CODE_EROSION_COMMENT" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Post or update the PR comment
+      if: always() && github.event_name == 'pull_request' && inputs.comment == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const body = fs.readFileSync(process.env.CODE_EROSION_COMMENT, 'utf8');
+          const marker = '<!-- code-erosion-report -->';
+          try {
+            const {data: comments} = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: context.issue.number, body,
+              });
+            }
+          } catch (error) {
+            // Usually a token without pull-requests:write. The report is in the
+            // job summary, so degrade instead of failing the run.
+            core.warning(`code-erosion: could not post the PR comment (${error.message}). See the job summary.`);
+          }
