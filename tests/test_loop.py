@@ -50,3 +50,12 @@ def test_rejects_baseline_touch_test_weakening_and_no_improvement(tmp_path):
     assert "candidate touched the committed baseline" in result["reasons"]
     assert any("deletes more test lines" in reason for reason in result["reasons"])
     assert "erosion did not improve" in result["reasons"]
+
+
+def test_workflow_exposes_model_agnostic_executor_contract():
+    workflow = Path('.github/workflows/code-erosion-loop.yml').read_text()
+    assert 'CODE_EROSION_EXECUTOR_COMMAND' in workflow
+    assert 'CODE_EROSION_PROMPT' in workflow
+    assert 'CODE_EROSION_SUGGESTIONS' in workflow
+    assert 'CODE_EROSION_TARGET' in workflow
+    assert 'anthropics/claude-code-action' not in workflow
