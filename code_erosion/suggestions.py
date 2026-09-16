@@ -27,10 +27,12 @@ _DRIVER_HINTS = {
     "ternary_expression": "inline conditionals: name non-obvious decisions",
     "logical_and": "compound conditions: name the business predicate if it carries meaning",
     "logical_or": "compound conditions: name the business predicate if it carries meaning",
+    "nullish_coalescing": "fallback values: name the defaulting policy if it carries meaning",
 }
 
 
 def build_suggestions(report: dict, *, top_n: int = 5) -> dict:
+    top_n = max(0, top_n)
     root = Path(report["root"])
     total_mass = float(report.get("total_mass", 0.0))
     ranked = []
@@ -74,7 +76,7 @@ def build_suggestions(report: dict, *, top_n: int = 5) -> dict:
             ],
         })
     ranked.sort(key=lambda item: (-item["erosion_mass"], item["path"], item["start_line"]))
-    ranked = ranked[:max(0, top_n)]
+    ranked = ranked[:top_n]
     for index, item in enumerate(ranked, 1):
         item["rank"] = index
     return {
@@ -87,13 +89,24 @@ def build_suggestions(report: dict, *, top_n: int = 5) -> dict:
     }
 
 
+def _markdown_text(value: object) -> str:
+    """Render repository-controlled text inert in GitHub Markdown."""
+    text = "".join(" " if ord(char) < 32 or ord(char) == 127 else char for char in str(value))
+    text = text.replace("@", "@\u200b")
+    for char in "\\`*_{}[]<>()#+-.!|":
+        text = text.replace(char, "\\" + char)
+    return text
+
+
 def render_markdown(payload: dict) -> str:
     out = ["## Refactoring suggestions", "", "Ranked by erosion mass. Fix the code, not the score.", ""]
     if not payload["suggestions"]:
         return "\n".join(out + ["No functions exceed CC 10.", ""])
     for item in payload["suggestions"]:
+        function = _markdown_text(item["function"])
+        anchor = _markdown_text(item["anchor"])
         out += [
-            f"### {item['rank']}. `{item['function']}` - `{item['anchor']}`",
+            f"### {item['rank']}. `{function}` - `{anchor}`",
             "",
             f"CC {item['cyclomatic_complexity']} · {item['sloc']} SLOC · mass {item['erosion_mass']:.1f} · {item['share_of_total_mass']:.1%} of total mass",
             "",
@@ -115,8 +128,10 @@ def render_agent_instructions(payload: dict) -> str:
         "## Operating discipline",
     ] + [f"- {line}" for line in DISCIPLINE] + ["", "## Ranked worklist"]
     for item in items:
+        function = _markdown_text(item["function"])
+        anchor = _markdown_text(item["anchor"])
         lines += [
-            f"### {item['rank']}. {item['function']} ({item['anchor']})",
+            f"### {item['rank']}. {function} ({anchor})",
             f"Current: CC {item['cyclomatic_complexity']}, {item['sloc']} SLOC, erosion mass {item['erosion_mass']:.1f}.",
         ]
         for driver in item["complexity_drivers"][:8]:
@@ -127,7 +142,7 @@ def render_agent_instructions(payload: dict) -> str:
         "1. Inspect the target and its callers/tests. State the responsibility seam before editing.",
         "2. Add characterization tests where behavior is not already pinned.",
         "3. Refactor one coherent target at a time. Do not split functions mechanically or add pass-through wrappers.",
-        "4. Run focused tests after each target, then the repository's full tests, typecheck, and lint.",
+        "4. Discover the repository's documented test, typecheck, and lint commands; run the focused checks after each target, then every applicable full check.",
         "5. Re-run `code-erosion . --suggestions-out code-erosion-suggestions.json --agent-instructions-out code-erosion-agent-instructions.md`.",
         "6. Open a PR describing the responsibility change, behavior proof, before/after erosion and CC, and any score caveat.",
         "7. Stop rather than weaken tests, change product behavior, or regenerate the baseline merely to pass the gate.", "",
