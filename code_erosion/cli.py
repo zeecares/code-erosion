@@ -14,6 +14,7 @@ from pathlib import Path
 
 from code_erosion import baseline as baseline_mod
 from code_erosion import history as history_mod
+from code_erosion import suggestions as suggestions_mod
 from code_erosion.core import (
     AstHit,
     ParseError,
@@ -208,8 +209,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--write-badge", type=Path, metavar="PATH",
                         help="Write a shields.io endpoint badge JSON for this scan to PATH")
     parser.add_argument("--history", type=Path, metavar="PATH",
-                        help="Committed history file; adds a trend section to the "
-                             "markdown gate report")
+                        help="Committed history file; adds a trend section to the markdown gate report")
+    parser.add_argument("--suggestions-out", type=Path, metavar="PATH",
+                        help="Write ranked, machine-readable refactoring suggestions as JSON")
+    parser.add_argument("--agent-instructions-out", type=Path, metavar="PATH",
+                        help="Write a ready-to-run refactoring agent prompt")
+    parser.add_argument("--suggestions-markdown-out", type=Path, metavar="PATH",
+                        help="Write the ranked suggestions as markdown")
+    parser.add_argument("--suggestions-top", type=int, default=5, metavar="N",
+                        help="Number of high-CC offenders to suggest (default: 5)")
     args = parser.parse_args(argv)
 
     if not args.path.exists():
@@ -220,6 +228,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"no Python/TypeScript files could be parsed at {args.path}", file=sys.stderr)
         return 2
     report_json = _report_json(report)
+    suggestions = suggestions_mod.build_suggestions(report_json, top_n=args.suggestions_top)
+    suggestions_mod.write_outputs(suggestions, args.suggestions_out, args.agent_instructions_out)
+    if args.suggestions_markdown_out:
+        args.suggestions_markdown_out.write_text(
+            suggestions_mod.render_markdown(suggestions), encoding="utf-8"
+        )
     if args.json:
         json.dump(report_json, sys.stdout, indent=2, default=str)
         print()
