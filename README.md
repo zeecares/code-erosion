@@ -217,3 +217,32 @@ Reproduce with `python -m code_erosion <clone> --json` (full per-function/per-fi
 
 MIT (this repo). Vendored `rules/python/*.yaml` are from scb-check 0.1.3,
 Apache-2.0, copyright the SlopCodeBench authors.
+
+## Agent-ready refactoring suggestions (v0.4)
+
+The scanner can now turn its high-CC ranking into a refactoring worklist with
+source anchors, the branches and conditions driving complexity, per-function
+deep-module guidance, and an explicit verification contract:
+
+```bash
+code-erosion . \
+  --suggestions-out code-erosion-suggestions.json \
+  --agent-instructions-out code-erosion-agent-instructions.md
+```
+
+The JSON is intended for orchestration. The Markdown file is a ready-to-paste
+prompt for Claude Code, OpenClaw, or another coding agent: inspect callers and
+tests, find a responsibility seam, add characterization or differential tests,
+refactor without thin wrappers, re-run the repository checks and scanner, then
+open a PR with behavior proof and before/after numbers.
+
+The GitHub Action does this with zero configuration. Every run uploads both
+files as the `code-erosion-suggestions` artifact and adds the ranked suggestions
+to the job summary and PR comment. Gate behavior is unchanged.
+
+This closes the handoff from measurement to execution instructions, not the
+optimization loop. It does not invoke an agent, review the resulting patch, or
+learn which instructions work. R7/GEPA supplies that outer candidate -> rollout
+-> held-out evaluation -> prompt-update loop. Keep tests as a hard gate and use
+held-out human judgment, since erosion is gameable and TypeScript reference
+bands remain extrapolated from Python.

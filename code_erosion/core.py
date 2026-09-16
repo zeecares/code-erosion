@@ -308,6 +308,7 @@ class FunctionSymbol:
     sloc: int
     cc: int
     language: str
+    complexity_drivers: tuple[dict, ...] = ()
 
     @property
     def mass(self) -> float:
@@ -326,6 +327,10 @@ def _symbol_name(node: Node, spec: LanguageSpec) -> str:
 
 
 def _function_cc(node: Node, spec: LanguageSpec) -> int:
+    # Deliberately retain the reference scorer's recursive semantics: decisions
+    # in nested callables contribute to the enclosing function's CC. Suggestions
+    # use owned drivers instead, so each source decision is attributed only to
+    # the callable a refactoring agent should change.
     count = 0
     for current in iter_nodes(node):
         if current.type in spec.cc_node_types:
@@ -354,6 +359,29 @@ def extract_functions(
             continue
         start_line = node.start_point[0] + 1
         end_line = node.end_point[0] + 1
+        drivers = []
+        stack = [node]
+        while stack:
+            current = stack.pop()
+            kind = None
+            if current.type in spec.cc_node_types:
+                kind = current.type
+            elif (
+                spec.logical_operators
+                and current.type == "binary_expression"
+                and (op := current.child_by_field_name("operator")) is not None
+                and op.text is not None
+                and op.text.decode() in spec.logical_operators
+            ):
+                kind = {"&&": "logical_and", "||": "logical_or", "??": "nullish_coalescing"}[
+                    op.text.decode()
+                ]
+            if kind:
+                drivers.append({"kind": kind, "line": current.start_point[0] + 1})
+            # Nested callables own their decisions. Do not descend into them
+            # when explaining the enclosing callable's complexity.
+            if current is node or current.type not in spec.function_node_types:
+                stack.extend(current.children)
         symbols.append(
             FunctionSymbol(
                 name=_symbol_name(node, spec),
@@ -363,6 +391,7 @@ def extract_functions(
                 sloc=count_sloc_in_span(start_line, end_line, sloc),
                 cc=_function_cc(node, spec),
                 language=spec.name,
+                complexity_drivers=tuple(drivers),
             )
         )
     return symbols
