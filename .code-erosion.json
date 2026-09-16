@@ -1,0 +1,759 @@
+{
+  "schema": 1,
+  "tool": "code-erosion",
+  "created": "2026-09-16T19:58:46Z",
+  "metrics": {
+    "verbosity": 0.11678435632808257,
+    "erosion": 0.5426627545241656,
+    "total_loc": 1841,
+    "files_scanned": 12,
+    "total_functions": 99,
+    "high_cc_functions": 11
+  },
+  "files": {
+    "code_erosion/__init__.py": {
+      "sloc": 1,
+      "verbosity": 0.0
+    },
+    "code_erosion/__main__.py": {
+      "sloc": 2,
+      "verbosity": 0.0
+    },
+    "code_erosion/baseline.py": {
+      "sloc": 191,
+      "verbosity": 0.178
+    },
+    "code_erosion/cli.py": {
+      "sloc": 268,
+      "verbosity": 0.1045
+    },
+    "code_erosion/core.py": {
+      "sloc": 541,
+      "verbosity": 0.1941
+    },
+    "code_erosion/history.py": {
+      "sloc": 92,
+      "verbosity": 0.1413
+    },
+    "code_erosion/languages.py": {
+      "sloc": 126,
+      "verbosity": 0.0397
+    },
+    "code_erosion/suggestions.py": {
+      "sloc": 148,
+      "verbosity": 0.0608
+    },
+    "tests/test_baseline.py": {
+      "sloc": 147,
+      "verbosity": 0.0136
+    },
+    "tests/test_history.py": {
+      "sloc": 97,
+      "verbosity": 0.0825
+    },
+    "tests/test_languages.py": {
+      "sloc": 108,
+      "verbosity": 0.0
+    },
+    "tests/test_suggestions.py": {
+      "sloc": 120,
+      "verbosity": 0.0917
+    }
+  },
+  "functions": {
+    "code_erosion/baseline.py::_relativize": {
+      "cc": 3,
+      "sloc": 5,
+      "mass": 6.7,
+      "high": false,
+      "line": 30
+    },
+    "code_erosion/baseline.py::snapshot_from_report": {
+      "cc": 5,
+      "sloc": 45,
+      "mass": 33.5,
+      "high": false,
+      "line": 37
+    },
+    "code_erosion/baseline.py::write_baseline": {
+      "cc": 1,
+      "sloc": 5,
+      "mass": 2.2,
+      "high": false,
+      "line": 87
+    },
+    "code_erosion/baseline.py::load_baseline": {
+      "cc": 3,
+      "sloc": 7,
+      "mass": 7.9,
+      "high": false,
+      "line": 94
+    },
+    "code_erosion/baseline.py::gate_pass": {
+      "cc": 1,
+      "sloc": 2,
+      "mass": 1.4,
+      "high": false,
+      "line": 121
+    },
+    "code_erosion/baseline.py::diff_against_baseline": {
+      "cc": 22,
+      "sloc": 42,
+      "mass": 142.6,
+      "high": true,
+      "line": 125
+    },
+    "code_erosion/baseline.py::_fmt_delta": {
+      "cc": 1,
+      "sloc": 2,
+      "mass": 1.4,
+      "high": false,
+      "line": 175
+    },
+    "code_erosion/baseline.py::render_markdown": {
+      "cc": 14,
+      "sloc": 60,
+      "mass": 108.4,
+      "high": true,
+      "line": 179
+    },
+    "code_erosion/cli.py::run_ast_grep": {
+      "cc": 12,
+      "sloc": 57,
+      "mass": 90.6,
+      "high": true,
+      "line": 33
+    },
+    "code_erosion/cli.py::scan": {
+      "cc": 6,
+      "sloc": 29,
+      "mass": 32.3,
+      "high": false,
+      "line": 93
+    },
+    "code_erosion/cli.py::_report_json": {
+      "cc": 3,
+      "sloc": 9,
+      "mass": 9.0,
+      "high": false,
+      "line": 127
+    },
+    "code_erosion/cli.py::_print_human": {
+      "cc": 9,
+      "sloc": 40,
+      "mass": 56.9,
+      "high": false,
+      "line": 138
+    },
+    "code_erosion/cli.py::main": {
+      "cc": 17,
+      "sloc": 106,
+      "mass": 175.0,
+      "high": true,
+      "line": 182
+    },
+    "code_erosion/core.py::walk_files": {
+      "cc": 9,
+      "sloc": 21,
+      "mass": 41.2,
+      "high": false,
+      "line": 39
+    },
+    "code_erosion/core.py::parse_source": {
+      "cc": 6,
+      "sloc": 9,
+      "mass": 18.0,
+      "high": false,
+      "line": 72
+    },
+    "code_erosion/core.py::iter_nodes": {
+      "cc": 2,
+      "sloc": 6,
+      "mass": 4.9,
+      "high": false,
+      "line": 84
+    },
+    "code_erosion/core.py::_python_sloc_lines": {
+      "cc": 5,
+      "sloc": 12,
+      "mass": 17.3,
+      "high": false,
+      "line": 105
+    },
+    "code_erosion/core.py::_ts_sloc_lines": {
+      "cc": 5,
+      "sloc": 8,
+      "mass": 14.1,
+      "high": false,
+      "line": 120
+    },
+    "code_erosion/core.py::_string_prefix": {
+      "cc": 3,
+      "sloc": 8,
+      "mass": 8.5,
+      "high": false,
+      "line": 131
+    },
+    "code_erosion/core.py::_plain_string_ranges": {
+      "cc": 11,
+      "sloc": 20,
+      "mass": 49.2,
+      "high": true,
+      "line": 141
+    },
+    "code_erosion/core.py::_owns_line": {
+      "cc": 4,
+      "sloc": 6,
+      "mass": 9.8,
+      "high": false,
+      "line": 164
+    },
+    "code_erosion/core.py::sloc_lines": {
+      "cc": 2,
+      "sloc": 4,
+      "mass": 4.0,
+      "high": false,
+      "line": 172
+    },
+    "code_erosion/core.py::count_sloc_in_span": {
+      "cc": 3,
+      "sloc": 2,
+      "mass": 4.2,
+      "high": false,
+      "line": 178
+    },
+    "code_erosion/core.py::_is_type_checking_block": {
+      "cc": 2,
+      "sloc": 4,
+      "mass": 4.0,
+      "high": false,
+      "line": 195
+    },
+    "code_erosion/core.py::_normalize_subtree": {
+      "cc": 16,
+      "sloc": 28,
+      "mass": 84.7,
+      "high": true,
+      "line": 201
+    },
+    "code_erosion/core.py::normalize": {
+      "cc": 16,
+      "sloc": 24,
+      "mass": 78.4,
+      "high": true,
+      "line": 205
+    },
+    "code_erosion/core.py::_is_plain_string_node": {
+      "cc": 7,
+      "sloc": 11,
+      "mass": 23.2,
+      "high": false,
+      "line": 234
+    },
+    "code_erosion/core.py::detect_clones": {
+      "cc": 10,
+      "sloc": 48,
+      "mass": 69.3,
+      "high": false,
+      "line": 247
+    },
+    "code_erosion/core.py::mass": {
+      "cc": 1,
+      "sloc": 2,
+      "mass": 1.4,
+      "high": false,
+      "line": 314
+    },
+    "code_erosion/core.py::is_high_cc": {
+      "cc": 1,
+      "sloc": 2,
+      "mass": 1.4,
+      "high": false,
+      "line": 318
+    },
+    "code_erosion/core.py::_ts_anonymous_name": {
+      "cc": 16,
+      "sloc": 20,
+      "mass": 71.6,
+      "high": true,
+      "line": 322
+    },
+    "code_erosion/core.py::_symbol_name": {
+      "cc": 4,
+      "sloc": 7,
+      "mass": 10.6,
+      "high": false,
+      "line": 351
+    },
+    "code_erosion/core.py::_function_cc": {
+      "cc": 8,
+      "sloc": 14,
+      "mass": 29.9,
+      "high": false,
+      "line": 360
+    },
+    "code_erosion/core.py::extract_functions": {
+      "cc": 16,
+      "sloc": 53,
+      "mass": 116.5,
+      "high": true,
+      "line": 380
+    },
+    "code_erosion/core.py::detect_trivial_wrappers": {
+      "cc": 41,
+      "sloc": 82,
+      "mass": 371.3,
+      "high": true,
+      "line": 451
+    },
+    "code_erosion/core.py::verbosity": {
+      "cc": 2,
+      "sloc": 2,
+      "mass": 2.8,
+      "high": false,
+      "line": 574
+    },
+    "code_erosion/core.py::build_report": {
+      "cc": 15,
+      "sloc": 77,
+      "mass": 131.6,
+      "high": true,
+      "line": 602
+    },
+    "code_erosion/core.py::span_lines": {
+      "cc": 3,
+      "sloc": 3,
+      "mass": 5.2,
+      "high": false,
+      "line": 625
+    },
+    "code_erosion/history.py::history_record": {
+      "cc": 2,
+      "sloc": 11,
+      "mass": 6.6,
+      "high": false,
+      "line": 31
+    },
+    "code_erosion/history.py::append_history": {
+      "cc": 1,
+      "sloc": 4,
+      "mass": 2.0,
+      "high": false,
+      "line": 45
+    },
+    "code_erosion/history.py::load_history": {
+      "cc": 8,
+      "sloc": 16,
+      "mass": 32.0,
+      "high": false,
+      "line": 52
+    },
+    "code_erosion/history.py::trend_direction": {
+      "cc": 3,
+      "sloc": 6,
+      "mass": 7.3,
+      "high": false,
+      "line": 71
+    },
+    "code_erosion/history.py::render_trend_markdown": {
+      "cc": 5,
+      "sloc": 24,
+      "mass": 24.5,
+      "high": false,
+      "line": 80
+    },
+    "code_erosion/history.py::badge_from_report": {
+      "cc": 4,
+      "sloc": 16,
+      "mass": 16.0,
+      "high": false,
+      "line": 107
+    },
+    "code_erosion/history.py::write_badge": {
+      "cc": 1,
+      "sloc": 5,
+      "mass": 2.2,
+      "high": false,
+      "line": 126
+    },
+    "code_erosion/languages.py::spec_for_suffix": {
+      "cc": 1,
+      "sloc": 2,
+      "mass": 1.4,
+      "high": false,
+      "line": 148
+    },
+    "code_erosion/languages.py::get_language": {
+      "cc": 2,
+      "sloc": 4,
+      "mass": 4.0,
+      "high": false,
+      "line": 152
+    },
+    "code_erosion/languages.py::get_tsx_language": {
+      "cc": 1,
+      "sloc": 2,
+      "mass": 1.4,
+      "high": false,
+      "line": 158
+    },
+    "code_erosion/suggestions.py::build_suggestions": {
+      "cc": 7,
+      "sloc": 56,
+      "mass": 52.4,
+      "high": false,
+      "line": 41
+    },
+    "code_erosion/suggestions.py::_markdown_text": {
+      "cc": 5,
+      "sloc": 6,
+      "mass": 12.2,
+      "high": false,
+      "line": 99
+    },
+    "code_erosion/suggestions.py::render_markdown": {
+      "cc": 6,
+      "sloc": 20,
+      "mass": 26.8,
+      "high": false,
+      "line": 108
+    },
+    "code_erosion/suggestions.py::render_agent_instructions": {
+      "cc": 4,
+      "sloc": 28,
+      "mass": 21.2,
+      "high": false,
+      "line": 130
+    },
+    "code_erosion/suggestions.py::write_outputs": {
+      "cc": 3,
+      "sloc": 5,
+      "mass": 6.7,
+      "high": false,
+      "line": 160
+    },
+    "tests/test_baseline.py::make_report": {
+      "cc": 8,
+      "sloc": 49,
+      "mass": 56.0,
+      "high": false,
+      "line": 16
+    },
+    "tests/test_baseline.py::test_snapshot_relativizes_paths": {
+      "cc": 6,
+      "sloc": 7,
+      "mass": 15.9,
+      "high": false,
+      "line": 68
+    },
+    "tests/test_baseline.py::test_snapshot_same_name_collision_keeps_heavier": {
+      "cc": 3,
+      "sloc": 8,
+      "mass": 8.5,
+      "high": false,
+      "line": 77
+    },
+    "tests/test_baseline.py::test_write_and_load_roundtrip": {
+      "cc": 3,
+      "sloc": 6,
+      "mass": 7.3,
+      "high": false,
+      "line": 87
+    },
+    "tests/test_baseline.py::test_load_rejects_non_baseline": {
+      "cc": 1,
+      "sloc": 5,
+      "mass": 2.2,
+      "high": false,
+      "line": 95
+    },
+    "tests/test_baseline.py::test_gate_passes_within_threshold": {
+      "cc": 3,
+      "sloc": 5,
+      "mass": 6.7,
+      "high": false,
+      "line": 102
+    },
+    "tests/test_baseline.py::test_gate_fails_beyond_threshold": {
+      "cc": 2,
+      "sloc": 4,
+      "mass": 4.0,
+      "high": false,
+      "line": 109
+    },
+    "tests/test_baseline.py::test_improvement_passes_and_shows_negative_delta": {
+      "cc": 3,
+      "sloc": 5,
+      "mass": 6.7,
+      "high": false,
+      "line": 115
+    },
+    "tests/test_baseline.py::test_new_and_resolved_high_cc": {
+      "cc": 3,
+      "sloc": 10,
+      "mass": 9.5,
+      "high": false,
+      "line": 122
+    },
+    "tests/test_baseline.py::test_mass_movers_tracked": {
+      "cc": 3,
+      "sloc": 9,
+      "mass": 9.0,
+      "high": false,
+      "line": 134
+    },
+    "tests/test_baseline.py::test_seed_baseline_without_detail_tolerated": {
+      "cc": 4,
+      "sloc": 16,
+      "mass": 16.0,
+      "high": false,
+      "line": 145
+    },
+    "tests/test_baseline.py::test_markdown_contents": {
+      "cc": 6,
+      "sloc": 14,
+      "mass": 22.4,
+      "high": false,
+      "line": 163
+    },
+    "tests/test_baseline.py::test_markdown_pass_copy": {
+      "cc": 2,
+      "sloc": 5,
+      "mass": 4.5,
+      "high": false,
+      "line": 179
+    },
+    "tests/test_history.py::make_report": {
+      "cc": 1,
+      "sloc": 8,
+      "mass": 2.8,
+      "high": false,
+      "line": 16
+    },
+    "tests/test_history.py::test_history_record_shape": {
+      "cc": 9,
+      "sloc": 14,
+      "mass": 33.7,
+      "high": false,
+      "line": 29
+    },
+    "tests/test_history.py::test_history_record_defaults_date_and_sha": {
+      "cc": 3,
+      "sloc": 4,
+      "mass": 6.0,
+      "high": false,
+      "line": 45
+    },
+    "tests/test_history.py::test_append_and_load_roundtrip": {
+      "cc": 4,
+      "sloc": 7,
+      "mass": 10.6,
+      "high": false,
+      "line": 54
+    },
+    "tests/test_history.py::test_load_history_skips_malformed_lines": {
+      "cc": 3,
+      "sloc": 12,
+      "mass": 10.4,
+      "high": false,
+      "line": 63
+    },
+    "tests/test_history.py::test_load_history_missing_file": {
+      "cc": 2,
+      "sloc": 2,
+      "mass": 2.8,
+      "high": false,
+      "line": 77
+    },
+    "tests/test_history.py::test_load_history_sorts_oldest_first": {
+      "cc": 3,
+      "sloc": 5,
+      "mass": 6.7,
+      "high": false,
+      "line": 81
+    },
+    "tests/test_history.py::test_trend_direction": {
+      "cc": 2,
+      "sloc": 2,
+      "mass": 2.8,
+      "high": false,
+      "line": 95
+    },
+    "tests/test_history.py::test_render_trend_empty": {
+      "cc": 2,
+      "sloc": 2,
+      "mass": 2.8,
+      "high": false,
+      "line": 99
+    },
+    "tests/test_history.py::test_render_trend_markdown_window_and_direction": {
+      "cc": 7,
+      "sloc": 11,
+      "mass": 23.2,
+      "high": false,
+      "line": 103
+    },
+    "tests/test_history.py::test_render_trend_single_entry_is_flat": {
+      "cc": 3,
+      "sloc": 6,
+      "mass": 7.3,
+      "high": false,
+      "line": 116
+    },
+    "tests/test_history.py::test_badge_colors_follow_bands": {
+      "cc": 5,
+      "sloc": 6,
+      "mass": 12.2,
+      "high": false,
+      "line": 131
+    },
+    "tests/test_history.py::test_write_badge": {
+      "cc": 3,
+      "sloc": 6,
+      "mass": 7.3,
+      "high": false,
+      "line": 139
+    },
+    "tests/test_languages.py::symbols": {
+      "cc": 1,
+      "sloc": 3,
+      "mass": 1.7,
+      "high": false,
+      "line": 19
+    },
+    "tests/test_languages.py::test_js_suffixes_route_to_the_typescript_engine": {
+      "cc": 7,
+      "sloc": 12,
+      "mass": 24.2,
+      "high": false,
+      "line": 27
+    },
+    "tests/test_languages.py::test_commonjs_and_esm_variants_parse": {
+      "cc": 3,
+      "sloc": 6,
+      "mass": 7.3,
+      "high": false,
+      "line": 44
+    },
+    "tests/test_languages.py::test_jsx_parses_in_js_and_jsx_files": {
+      "cc": 4,
+      "sloc": 5,
+      "mass": 8.9,
+      "high": false,
+      "line": 52
+    },
+    "tests/test_languages.py::test_parse_failure_raises": {
+      "cc": 1,
+      "sloc": 3,
+      "mass": 1.7,
+      "high": false,
+      "line": 63
+    },
+    "tests/test_languages.py::test_js_cc_golden_lines_and_kinds": {
+      "cc": 3,
+      "sloc": 14,
+      "mass": 11.2,
+      "high": false,
+      "line": 71
+    },
+    "tests/test_languages.py::test_js_anonymous_callables_take_binding_names": {
+      "cc": 3,
+      "sloc": 6,
+      "mass": 7.3,
+      "high": false,
+      "line": 105
+    },
+    "tests/test_languages.py::test_python_boolean_operators_split_into_logical_kinds": {
+      "cc": 3,
+      "sloc": 5,
+      "mass": 6.7,
+      "high": false,
+      "line": 122
+    },
+    "tests/test_languages.py::test_python_nested_defs_own_their_drivers_lambdas_do_not": {
+      "cc": 6,
+      "sloc": 8,
+      "mass": 17.0,
+      "high": false,
+      "line": 132
+    },
+    "tests/test_languages.py::test_python_specific_driver_hints_exist": {
+      "cc": 9,
+      "sloc": 23,
+      "mass": 43.2,
+      "high": false,
+      "line": 153
+    },
+    "tests/test_languages.py::test_scan_handles_a_mixed_python_and_js_repo": {
+      "cc": 7,
+      "sloc": 11,
+      "mass": 23.2,
+      "high": false,
+      "line": 181
+    },
+    "tests/test_suggestions.py::report": {
+      "cc": 1,
+      "sloc": 11,
+      "mass": 3.3,
+      "high": false,
+      "line": 10
+    },
+    "tests/test_suggestions.py::symbols": {
+      "cc": 1,
+      "sloc": 3,
+      "mass": 1.7,
+      "high": false,
+      "line": 23
+    },
+    "tests/test_suggestions.py::test_typescript_driver_golden_lines_and_nested_ownership": {
+      "cc": 5,
+      "sloc": 13,
+      "mass": 18.0,
+      "high": false,
+      "line": 28
+    },
+    "tests/test_suggestions.py::test_python_driver_golden_lines": {
+      "cc": 2,
+      "sloc": 10,
+      "mass": 6.3,
+      "high": false,
+      "line": 51
+    },
+    "tests/test_suggestions.py::test_v1_schema_golden_object": {
+      "cc": 2,
+      "sloc": 33,
+      "mass": 11.5,
+      "high": false,
+      "line": 67
+    },
+    "tests/test_suggestions.py::test_ranking_top_n_and_negative_normalization": {
+      "cc": 4,
+      "sloc": 11,
+      "mass": 13.3,
+      "high": false,
+      "line": 102
+    },
+    "tests/test_suggestions.py::test_outputs_are_agent_ready_and_markdown_is_inert": {
+      "cc": 6,
+      "sloc": 13,
+      "mass": 21.6,
+      "high": false,
+      "line": 115
+    },
+    "tests/test_suggestions.py::test_cli_writes_outputs_and_preserves_gate_exit_status": {
+      "cc": 6,
+      "sloc": 15,
+      "mass": 23.2,
+      "high": false,
+      "line": 130
+    },
+    "tests/test_suggestions.py::test_action_suggestion_artifacts_are_non_blocking": {
+      "cc": 4,
+      "sloc": 5,
+      "mass": 8.9,
+      "high": false,
+      "line": 148
+    }
+  },
+  "collisions": []
+}
