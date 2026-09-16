@@ -82,9 +82,12 @@ runs:
         suggestions_md="$RUNNER_TEMP/code-erosion-suggestions.md"
         echo "CODE_EROSION_SUGGESTIONS=$suggestions" >> "$GITHUB_ENV"
         echo "CODE_EROSION_AGENT_INSTRUCTIONS=$instructions" >> "$GITHUB_ENV"
-        code-erosion "$SCAN_PATH" --suggestions-out "$suggestions" \
-          --agent-instructions-out "$instructions" \
-          --suggestions-markdown-out "$suggestions_md" > /dev/null
+        if ! code-erosion "$SCAN_PATH" --suggestions-out "$suggestions" \
+            --agent-instructions-out "$instructions" \
+            --suggestions-markdown-out "$suggestions_md" > /dev/null; then
+          echo "::warning::code-erosion: suggestion artifacts failed; the scan and gate are unaffected."
+          rm -f "$suggestions" "$instructions" "$suggestions_md"
+        fi
         hist_arg=""
         if [ -n "$HISTORY" ] && [ -f "$HISTORY" ]; then hist_arg="--history $HISTORY"; fi
         if [ ! -f "$BASELINE" ]; then
@@ -99,7 +102,7 @@ runs:
             echo "re-run locally with \`code-erosion . --write-baseline $BASELINE\`, commit the"
             echo "file, and future PRs will diff and gate against it."
           } > "$comment"
-          cat "$suggestions_md" >> "$comment"
+          if [ -f "$suggestions_md" ]; then cat "$suggestions_md" >> "$comment"; fi
           exit 0
         fi
         extra=""
@@ -109,7 +112,7 @@ runs:
           --threshold "$THRESHOLD" $extra $hist_arg --comment-out "$comment" > /dev/null
         status=$?
         set -e
-        cat "$suggestions_md" >> "$comment"
+        if [ -f "$suggestions_md" ]; then cat "$suggestions_md" >> "$comment"; fi
         if [ $status -ne 0 ]; then
           echo "::error::code-erosion gate failed - see the job summary and PR comment for the diff."
           exit $status
