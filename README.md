@@ -215,6 +215,35 @@ algorithms with grammar-mapped node types:
 
 Reproduce with `python -m code_erosion <clone> --json` (full per-function/per-file detail).
 
+### Self-dogfood (v0.5)
+
+This repository scans and gates itself: `.github/workflows/code-erosion.yml`
+runs its own action (`uses: ./`, gate mode) on every PR against the committed
+baseline `.code-erosion.json`, and the test suite runs in
+`.github/workflows/tests.yml`.
+
+| Repo (commit) | Lang | SLOC | Verbosity | Erosion | Reading |
+|---|---|---|---|---|---|
+| zeecares/code-erosion (v0.5.0) | Py | 1,841 | **0.117** | **0.543** | Verbosity below the human band; erosion between the bands, agent-leaning |
+
+Honest read: the scanner's own worst offender is `detect_trivial_wrappers`
+(CC 41, 14% of total mass) - the wrapper detector is itself the most
+branch-heavy function in the repo, with `main` (CC 17) and
+`diff_against_baseline` (CC 22) behind it. They are on the refactoring
+worklist, tracked as follow-up work rather than silently baselined away.
+
+### 4allhuman top-5 erosion offenders (refactoring worklist)
+
+| Function | Location | SLOC | CC | Mass |
+|---|---|---|---|---|
+| Home | src/app/page.tsx:327 | 1079 | 120 | 3941.8 |
+| parseTermsTxt | src/lib/terms.ts:67 | 72 | 33 | 280.0 |
+| render_markdown | wiki-viewer/serve.py:66 | 59 | 33 | 253.5 |
+| CloudflareCheckCard | src/app/page.tsx:210 | 103 | 19 | 192.8 |
+| POST | src/app/api/verify/route.ts:33 | 75 | 19 | 164.5 |
+
+`Home` alone holds 46% of the repo's total erosion mass.
+
 ## Caveats
 
 - The reference bands are calibrated on Python repos and Python-track agent
