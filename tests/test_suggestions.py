@@ -59,8 +59,8 @@ def test_python_driver_golden_lines():
         {"kind": "for_statement", "line": 2},
         {"kind": "if_statement", "line": 3},
         {"kind": "conditional_expression", "line": 4},
-        {"kind": "boolean_operator", "line": 3},
-        {"kind": "boolean_operator", "line": 3},
+        {"kind": "logical_and", "line": 3},
+        {"kind": "logical_or", "line": 3},
     )
 
 
