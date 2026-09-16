@@ -1,0 +1,19 @@
+name: code-erosion
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: write       # to commit the trend history back on push
+  pull-requests: write  # to post the report comment
+jobs:
+  erosion:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Self-dogfood: run the action from this checkout, not a released tag,
+      # so every PR is gated by the scanner version it ships.
+      - uses: ./
+        with:
+          mode: gate
+          threshold: "0.01"
