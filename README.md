@@ -263,15 +263,51 @@ leaving R8/GEPA a durable training trail: offender, executor, decision/reasons,
 before/after scores, changed files, and check results. GEPA is deliberately not
 part of this release.
 
+### Bring your own executor
+
+The loop has no model or agent dependency. Its executor contract is:
+
+- input: `CODE_EROSION_PROMPT` (agent-instructions Markdown),
+  `CODE_EROSION_SUGGESTIONS` (full JSON), and `CODE_EROSION_TARGET` (rank-1 JSON)
+- working directory: the checked-out repository
+- output: an uncommitted patch in that working directory
+- exit: zero when execution completed; the loop, not the executor, discovers
+  and runs checks, rescans, judges, records memory, and opens any draft PR
+
 The default `standin` executor is deterministic and intentionally makes no
 source refactor. It proves scan, selection, verification, rejection, artifacts,
-and memory without pretending an agent ran. To run a real candidate:
+and memory without pretending an agent ran.
 
-1. Add one repository secret named `ANTHROPIC_API_KEY`.
-2. Dispatch **code-erosion self-driving loop** with `executor=live`.
+For live mode, define trusted repository variables (Settings -> Secrets and
+variables -> Actions -> Variables):
 
-Live mode uses the official `anthropics/claude-code-action@v1`. The API key is
-the only required secret; GitHub's own token opens the draft PR and writes loop
-memory. This is autonomous candidate production, not autonomous acceptance:
-a human still reviews and merges the draft. The guard against weakened tests is
+- `CODE_EROSION_EXECUTOR_INSTALL`: optional install command
+- `CODE_EROSION_EXECUTOR_COMMAND`: required headless command; read the prompt
+  from `$CODE_EROSION_PROMPT` and edit the checkout in place
+
+Then dispatch **code-erosion self-driving loop** with `executor=command`.
+Repository variables are trusted configuration; PR contents cannot select the
+command. Provider credentials remain ordinary repository secrets. Add only the
+secret for the executor you chose.
+
+Claude Code example (secret `ANTHROPIC_API_KEY`):
+
+```text
+CODE_EROSION_EXECUTOR_INSTALL=npm install -g @anthropic-ai/claude-code
+CODE_EROSION_EXECUTOR_COMMAND=claude -p "$(cat "$CODE_EROSION_PROMPT")" --allowedTools "Read,Edit,Write,Bash"
+```
+
+Codex example (secret `OPENAI_API_KEY`):
+
+```text
+CODE_EROSION_EXECUTOR_INSTALL=npm install -g @openai/codex
+CODE_EROSION_EXECUTOR_COMMAND=codex exec --ephemeral - < "$CODE_EROSION_PROMPT"
+```
+
+Any other local or hosted agent CLI fits the same shell contract. For example,
+a wrapper script can read the three paths, call its provider, and apply a patch
+with `git apply`. No executor may declare its own candidate accepted.
+
+This is autonomous candidate production, not autonomous acceptance: a human
+still reviews and merges the draft. The guard against weakened tests is
 intentionally conservative, not a proof of semantic test quality.
