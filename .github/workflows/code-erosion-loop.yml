@@ -1,0 +1,124 @@
+name: code-erosion self-driving loop
+
+on:
+  workflow_dispatch:
+    inputs:
+      executor:
+        description: live uses Claude Code; standin proves the plumbing without an API call
+        type: choice
+        options: [standin, live]
+        default: standin
+  schedule:
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: code-erosion-loop-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  refactor:
+    runs-on: ubuntu-latest
+    env:
+      EXECUTOR: ${{ inputs.executor || 'standin' }}
+      MEMORY_BRANCH: code-erosion-loop-memory
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Enforce one open loop PR
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          if gh pr list --state open --json headRefName --jq '.[].headRefName' | grep -q '^code-erosion-loop/'; then
+            echo "An open loop PR already exists; stopping."; exit 1
+          fi
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Install scanner and test runner
+        run: python -m pip install . pytest
+      - name: Scan and prepare top offender
+        run: |
+          mkdir -p "$RUNNER_TEMP/erosion-loop"
+          code-erosion . --json --suggestions-out "$RUNNER_TEMP/erosion-loop/suggestions.json" \
+            --agent-instructions-out "$RUNNER_TEMP/erosion-loop/agent-instructions.md" \
+            > "$RUNNER_TEMP/erosion-loop/before.json"
+          python -m code_erosion.loop discover-checks . > "$RUNNER_TEMP/erosion-loop/checks-to-run.json"
+          test "$(python -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["suggestions"]))' "$RUNNER_TEMP/erosion-loop/suggestions.json")" -gt 0
+      - name: Require the one live secret
+        if: env.EXECUTOR == 'live'
+        env: {ANTHROPIC_API_KEY: "${{ secrets.ANTHROPIC_API_KEY }}"}
+        run: test -n "$ANTHROPIC_API_KEY" || { echo "Add ANTHROPIC_API_KEY as a repository secret."; exit 1; }
+      - name: Run Claude Code on the top offender
+        if: env.EXECUTOR == 'live'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Read $RUNNER_TEMP/erosion-loop/agent-instructions.md and suggestions.json.
+            Refactor only the rank-1 offender. Preserve behavior, add characterization tests when needed,
+            never touch .code-erosion.json, never weaken tests, and leave the candidate patch uncommitted.
+          claude_args: "--max-turns 30"
+      - name: Deterministic stand-in executor
+        if: env.EXECUTOR == 'standin'
+        run: |
+          printf '%s\n' 'Stand-in executor ran; it intentionally makes no source change.' \
+            > .code-erosion-loop-standin.txt
+      - name: Run every discovered check
+        id: checks
+        continue-on-error: true
+        run: |
+          python - <<'PY'
+          import json, subprocess, os
+          path=os.path.join(os.environ['RUNNER_TEMP'],'erosion-loop','checks-to-run.json')
+          commands=json.load(open(path)); results=[]; passed=bool(commands)
+          for command in commands:
+              run=subprocess.run(command, shell=True)
+              results.append({'command': command, 'exit_code': run.returncode})
+              passed = passed and run.returncode == 0
+          json.dump({'passed': passed, 'results': results}, open(os.path.join(os.environ['RUNNER_TEMP'],'erosion-loop','checks.json'),'w'))
+          PY
+      - name: Measure and judge candidate
+        id: judge
+        continue-on-error: true
+        run: |
+          code-erosion . --json > "$RUNNER_TEMP/erosion-loop/after.json"
+          python -m code_erosion.loop evaluate . \
+            --before "$RUNNER_TEMP/erosion-loop/before.json" \
+            --after "$RUNNER_TEMP/erosion-loop/after.json" \
+            --checks "$RUNNER_TEMP/erosion-loop/checks.json" \
+            --suggestions "$RUNNER_TEMP/erosion-loop/suggestions.json" \
+            --executor "$EXECUTOR" --out "$RUNNER_TEMP/erosion-loop/outcome.json"
+      - name: Append durable loop memory
+        run: |
+          outcome="$RUNNER_TEMP/erosion-loop/outcome.json"
+          git fetch origin "$MEMORY_BRANCH" || true
+          rm -rf "$RUNNER_TEMP/loop-memory"
+          if git show-ref --verify --quiet "refs/remotes/origin/$MEMORY_BRANCH"; then
+            git worktree add "$RUNNER_TEMP/loop-memory" "origin/$MEMORY_BRANCH"
+          else
+            git worktree add --detach "$RUNNER_TEMP/loop-memory"
+            git -C "$RUNNER_TEMP/loop-memory" switch --orphan "$MEMORY_BRANCH"
+            git -C "$RUNNER_TEMP/loop-memory" rm -rf .
+          fi
+          cat "$outcome" | python -c 'import json,sys; print(json.dumps(json.load(sys.stdin), separators=(",",":")))' \
+            >> "$RUNNER_TEMP/loop-memory/.code-erosion-loop-history.jsonl"
+          git -C "$RUNNER_TEMP/loop-memory" add .code-erosion-loop-history.jsonl
+          git -C "$RUNNER_TEMP/loop-memory" -c user.name=github-actions -c user.email=41898282+github-actions[bot]@users.noreply.github.com \
+            commit -m "code-erosion: record loop outcome $GITHUB_RUN_ID"
+          git -C "$RUNNER_TEMP/loop-memory" push origin "HEAD:$MEMORY_BRANCH"
+      - name: Open accepted candidate as a draft PR
+        if: steps.judge.outcome == 'success'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: code-erosion-loop/${{ github.run_id }}
+          title: "code-erosion loop: refactor top offender"
+          body-path: ${{ runner.temp }}/erosion-loop/outcome.json
+          draft: true
+          commit-message: "refactor: code-erosion loop candidate"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: code-erosion-loop-${{ github.run_id }}
+          path: ${{ runner.temp }}/erosion-loop
