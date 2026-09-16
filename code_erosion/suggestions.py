@@ -28,6 +28,13 @@ _DRIVER_HINTS = {
     "logical_and": "compound conditions: name the business predicate if it carries meaning",
     "logical_or": "compound conditions: name the business predicate if it carries meaning",
     "nullish_coalescing": "fallback values: name the defaulting policy if it carries meaning",
+    "boolean_operator": "compound conditions: name the business predicate if it carries meaning",
+    "assert_statement": "invariants: keep assertions visible; they state policy, not slop",
+    "list_comprehension": "comprehensions: extract a named helper when the pipeline hides a responsibility",
+    "set_comprehension": "comprehensions: extract a named helper when the pipeline hides a responsibility",
+    "dictionary_comprehension": "comprehensions: extract a named helper when the pipeline hides a responsibility",
+    "generator_expression": "comprehensions: extract a named helper when the pipeline hides a responsibility",
+    "if_clause": "comprehension filters: name the predicate if it carries meaning",
 }
 
 

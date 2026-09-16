@@ -319,10 +319,41 @@ class FunctionSymbol:
         return self.cc > HIGH_COMPLEXITY_THRESHOLD
 
 
+def _ts_anonymous_name(node: Node) -> str:
+    """Name an anonymous JS/TS callable from its syntactic parent.
+
+    Covers the idiomatic binding patterns: `const f = () => ...`,
+    `exports.f = function ...`, `obj.m = () => ...`, `{ key: () => ... }`,
+    and `export default function () ...`. Genuinely anonymous callbacks
+    (arguments, JSX props) stay "<anonymous>".
+    """
+    parent = node.parent
+    if parent is None:
+        return "<anonymous>"
+    if parent.type == "variable_declarator":
+        name = parent.child_by_field_name("name")
+        if name is not None and name.type == "identifier" and name.text:
+            return name.text.decode("utf-8")
+    elif parent.type == "assignment_expression":
+        left = parent.child_by_field_name("left")
+        if left is not None and left.type in {"identifier", "member_expression"} and left.text:
+            return left.text.decode("utf-8")
+    elif parent.type == "pair":
+        key = parent.child_by_field_name("key")
+        if key is not None and key.text:
+            return key.text.decode("utf-8")
+    elif parent.type == "export_statement":
+        if any(child.type == "default" for child in parent.children):
+            return "<default export>"
+    return "<anonymous>"
+
+
 def _symbol_name(node: Node, spec: LanguageSpec) -> str:
     name_node = node.child_by_field_name("name")
     if name_node is not None and name_node.text is not None:
         return name_node.text.decode("utf-8")
+    if spec.name == "typescript":
+        return _ts_anonymous_name(node)
     return "<anonymous>"
 
 
@@ -366,6 +397,15 @@ def extract_functions(
             kind = None
             if current.type in spec.cc_node_types:
                 kind = current.type
+                if kind == "boolean_operator":
+                    # Name the actual connective so Python drivers match the
+                    # logical_and/logical_or kinds TypeScript already emits.
+                    op_child = current.child_by_field_name("operator")
+                    if op_child is not None and op_child.text is not None:
+                        kind = {
+                            "and": "logical_and",
+                            "or": "logical_or",
+                        }.get(op_child.text.decode("utf-8"), kind)
             elif (
                 spec.logical_operators
                 and current.type == "binary_expression"

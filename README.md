@@ -27,6 +27,30 @@ python -m code_erosion /path/to/repo --json      # machine-readable report
 Scans `.py` and `.ts/.tsx/.js/.jsx/.mts/.cts/.mjs/.cjs` files, skipping
 `.git`, `node_modules`, build output, caches, and virtualenvs.
 
+## Language support
+
+| Language | Files | Parsing | CC + drivers | Clones | Wrappers | ast-grep rules |
+|---|---|---|---|---|---|---|
+| Python | `.py` | tree-sitter-python + stdlib `tokenize` (scb-check 0.1.3 semantics) | yes | yes | yes | 197 vendored rules (`rules/python/`) |
+| TypeScript | `.ts`, `.tsx`, `.mts`, `.cts` | tree-sitter-typescript (adapted rule set) | yes | yes | yes | 9 analog rules (`rules/ts/`) |
+| JavaScript | `.js`, `.jsx`, `.mjs`, `.cjs` | same TypeScript engine, with a TSX-grammar retry so JSX inside `.js` also parses | yes | yes | yes | 9 analog rules (`rules/ts/`) |
+
+Language semantics worth knowing:
+
+- Anonymous JS/TS callables are named from their binding for the worklist:
+  `const f = () => ...`, `obj.m = function ...`, `exports.f = () => ...`,
+  object-literal keys, and `export default`. Genuine callbacks stay
+  `<anonymous>`. (v0.5)
+- Python `and`/`or` drivers are reported as `logical_and`/`logical_or`,
+  the same kinds TypeScript emits, with hints for the Python-only kinds
+  (assertions, comprehensions, comprehension filters). (v0.5)
+- Python lambdas are not callables in the grammar mapping, matching
+  scb-check: a lambda's conditional expression attributes to the enclosing
+  function.
+- Known TS inflation source, unchanged: the single-return wrapper rule
+  flags small React function components (idiomatic TSX); expression-bodied
+  arrows are excluded.
+
 
 ## CI gate (GitHub Action)
 
@@ -190,18 +214,6 @@ algorithms with grammar-mapped node types:
 | zeecares/fly-brain-lab (main) | Py | 1,140 | **0.075** | **0.516** | Verbosity below the human band; erosion between the bands, agent-leaning |
 
 Reproduce with `python -m code_erosion <clone> --json` (full per-function/per-file detail).
-
-### 4allhuman top-5 erosion offenders (refactoring worklist)
-
-| Function | Location | SLOC | CC | Mass |
-|---|---|---|---|---|
-| Home | src/app/page.tsx:327 | 1079 | 120 | 3941.8 |
-| parseTermsTxt | src/lib/terms.ts:67 | 72 | 33 | 280.0 |
-| render_markdown | wiki-viewer/serve.py:66 | 59 | 33 | 253.5 |
-| CloudflareCheckCard | src/app/page.tsx:210 | 103 | 19 | 192.8 |
-| POST | src/app/api/verify/route.ts:33 | 75 | 19 | 164.5 |
-
-`Home` alone holds 46% of the repo's total erosion mass.
 
 ## Caveats
 
