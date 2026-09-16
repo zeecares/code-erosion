@@ -308,6 +308,7 @@ class FunctionSymbol:
     sloc: int
     cc: int
     language: str
+    complexity_drivers: tuple[dict, ...] = ()
 
     @property
     def mass(self) -> float:
@@ -354,6 +355,21 @@ def extract_functions(
             continue
         start_line = node.start_point[0] + 1
         end_line = node.end_point[0] + 1
+        drivers = []
+        for current in iter_nodes(node):
+            kind = None
+            if current.type in spec.cc_node_types:
+                kind = current.type
+            elif (
+                spec.logical_operators
+                and current.type == "binary_expression"
+                and (op := current.child_by_field_name("operator")) is not None
+                and op.text is not None
+                and op.text.decode() in spec.logical_operators
+            ):
+                kind = "logical_and" if op.text == b"&&" else "logical_or"
+            if kind:
+                drivers.append({"kind": kind, "line": current.start_point[0] + 1})
         symbols.append(
             FunctionSymbol(
                 name=_symbol_name(node, spec),
@@ -363,6 +379,7 @@ def extract_functions(
                 sloc=count_sloc_in_span(start_line, end_line, sloc),
                 cc=_function_cc(node, spec),
                 language=spec.name,
+                complexity_drivers=tuple(drivers),
             )
         )
     return symbols
