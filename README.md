@@ -246,3 +246,68 @@ learn which instructions work. R7/GEPA supplies that outer candidate -> rollout
 -> held-out evaluation -> prompt-update loop. Keep tests as a hard gate and use
 held-out human judgment, since erosion is gameable and TypeScript reference
 bands remain extrapolated from Python.
+
+## Self-driving refactoring loop (experimental)
+
+`.github/workflows/code-erosion-loop.yml` is the first guarded outer loop. It
+scans the repository, selects the top suggestion, runs one executor, discovers
+and runs the repository's test/typecheck/lint commands, measures the candidate,
+and opens an accepted patch as a **draft** PR. A candidate is discarded when
+checks fail, erosion does not improve, the committed baseline changes, or a test
+file loses more lines than it gains. Only one `code-erosion-loop/*` PR may be
+open at once.
+
+Every iteration, accepted or discarded, is appended as JSONL on the dedicated
+`code-erosion-loop-memory` branch. This keeps outcome memory out of `main` while
+leaving R8/GEPA a durable training trail: offender, executor, decision/reasons,
+before/after scores, changed files, and check results. GEPA is deliberately not
+part of this release.
+
+### Bring your own executor
+
+The loop has no model or agent dependency. Its executor contract is:
+
+- input: `CODE_EROSION_PROMPT` (agent-instructions Markdown),
+  `CODE_EROSION_SUGGESTIONS` (full JSON), and `CODE_EROSION_TARGET` (rank-1 JSON)
+- working directory: the checked-out repository
+- output: an uncommitted patch in that working directory
+- exit: zero when execution completed; the loop, not the executor, discovers
+  and runs checks, rescans, judges, records memory, and opens any draft PR
+
+The default `standin` executor is deterministic and intentionally makes no
+source refactor. It proves scan, selection, verification, rejection, artifacts,
+and memory without pretending an agent ran.
+
+For live mode, define trusted repository variables (Settings -> Secrets and
+variables -> Actions -> Variables):
+
+- `CODE_EROSION_EXECUTOR_INSTALL`: optional install command
+- `CODE_EROSION_EXECUTOR_COMMAND`: required headless command; read the prompt
+  from `$CODE_EROSION_PROMPT` and edit the checkout in place
+
+Then dispatch **code-erosion self-driving loop** with `executor=command`.
+Repository variables are trusted configuration; PR contents cannot select the
+command. Provider credentials remain ordinary repository secrets. Add only the
+secret for the executor you chose.
+
+Claude Code example (secret `ANTHROPIC_API_KEY`):
+
+```text
+CODE_EROSION_EXECUTOR_INSTALL=npm install -g @anthropic-ai/claude-code
+CODE_EROSION_EXECUTOR_COMMAND=claude -p "$(cat "$CODE_EROSION_PROMPT")" --allowedTools "Read,Edit,Write,Bash"
+```
+
+Codex example (secret `OPENAI_API_KEY`):
+
+```text
+CODE_EROSION_EXECUTOR_INSTALL=npm install -g @openai/codex
+CODE_EROSION_EXECUTOR_COMMAND=codex exec --ephemeral - < "$CODE_EROSION_PROMPT"
+```
+
+Any other local or hosted agent CLI fits the same shell contract. For example,
+a wrapper script can read the three paths, call its provider, and apply a patch
+with `git apply`. No executor may declare its own candidate accepted.
+
+This is autonomous candidate production, not autonomous acceptance: a human
+still reviews and merges the draft. The guard against weakened tests is
+intentionally conservative, not a proof of semantic test quality.
