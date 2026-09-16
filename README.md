@@ -246,3 +246,32 @@ learn which instructions work. R7/GEPA supplies that outer candidate -> rollout
 -> held-out evaluation -> prompt-update loop. Keep tests as a hard gate and use
 held-out human judgment, since erosion is gameable and TypeScript reference
 bands remain extrapolated from Python.
+
+## Self-driving refactoring loop (experimental)
+
+`.github/workflows/code-erosion-loop.yml` is the first guarded outer loop. It
+scans the repository, selects the top suggestion, runs one executor, discovers
+and runs the repository's test/typecheck/lint commands, measures the candidate,
+and opens an accepted patch as a **draft** PR. A candidate is discarded when
+checks fail, erosion does not improve, the committed baseline changes, or a test
+file loses more lines than it gains. Only one `code-erosion-loop/*` PR may be
+open at once.
+
+Every iteration, accepted or discarded, is appended as JSONL on the dedicated
+`code-erosion-loop-memory` branch. This keeps outcome memory out of `main` while
+leaving R8/GEPA a durable training trail: offender, executor, decision/reasons,
+before/after scores, changed files, and check results. GEPA is deliberately not
+part of this release.
+
+The default `standin` executor is deterministic and intentionally makes no
+source refactor. It proves scan, selection, verification, rejection, artifacts,
+and memory without pretending an agent ran. To run a real candidate:
+
+1. Add one repository secret named `ANTHROPIC_API_KEY`.
+2. Dispatch **code-erosion self-driving loop** with `executor=live`.
+
+Live mode uses the official `anthropics/claude-code-action@v1`. The API key is
+the only required secret; GitHub's own token opens the draft PR and writes loop
+memory. This is autonomous candidate production, not autonomous acceptance:
+a human still reviews and merges the draft. The guard against weakened tests is
+intentionally conservative, not a proof of semantic test quality.
