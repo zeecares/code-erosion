@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       executor:
-        description: live uses Claude Code; standin proves the plumbing without an API call
+        description: command runs your configured CLI; standin proves the plumbing without an API call
         type: choice
-        options: [standin, live]
+        options: [standin, command]
         default: standin
   schedule:
     - cron: "17 4 * * 1"
@@ -46,20 +46,27 @@ jobs:
             > "$RUNNER_TEMP/erosion-loop/before.json"
           python -m code_erosion.loop discover-checks . > "$RUNNER_TEMP/erosion-loop/checks-to-run.json"
           test "$(python -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["suggestions"]))' "$RUNNER_TEMP/erosion-loop/suggestions.json")" -gt 0
-      - name: Require the one live secret
-        if: env.EXECUTOR == 'live'
-        env: {ANTHROPIC_API_KEY: "${{ secrets.ANTHROPIC_API_KEY }}"}
-        run: test -n "$ANTHROPIC_API_KEY" || { echo "Add ANTHROPIC_API_KEY as a repository secret."; exit 1; }
-      - name: Run Claude Code on the top offender
-        if: env.EXECUTOR == 'live'
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          prompt: |
-            Read $RUNNER_TEMP/erosion-loop/agent-instructions.md and suggestions.json.
-            Refactor only the rank-1 offender. Preserve behavior, add characterization tests when needed,
-            never touch .code-erosion.json, never weaken tests, and leave the candidate patch uncommitted.
-          claude_args: "--max-turns 30"
+      - name: Run bring-your-own executor
+        if: env.EXECUTOR == 'command'
+        env:
+          CODE_EROSION_EXECUTOR_INSTALL: ${{ vars.CODE_EROSION_EXECUTOR_INSTALL }}
+          CODE_EROSION_EXECUTOR_COMMAND: ${{ vars.CODE_EROSION_EXECUTOR_COMMAND }}
+          CODE_EROSION_PROMPT: ${{ runner.temp }}/erosion-loop/agent-instructions.md
+          CODE_EROSION_SUGGESTIONS: ${{ runner.temp }}/erosion-loop/suggestions.json
+          CODE_EROSION_TARGET: ${{ runner.temp }}/erosion-loop/target.json
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          test -n "$CODE_EROSION_EXECUTOR_COMMAND" || {
+            echo "Set the CODE_EROSION_EXECUTOR_COMMAND repository variable."; exit 1;
+          }
+          python -c 'import json,os; s=json.load(open(os.environ["CODE_EROSION_SUGGESTIONS"])); json.dump(s["suggestions"][0], open(os.environ["CODE_EROSION_TARGET"], "w"), indent=2)'
+          if [ -n "$CODE_EROSION_EXECUTOR_INSTALL" ]; then
+            bash -lc "$CODE_EROSION_EXECUTOR_INSTALL"
+          fi
+          # Repository variables are trusted configuration, never PR-controlled text.
+          # The command receives file paths and edits this checkout in place.
+          bash -lc "$CODE_EROSION_EXECUTOR_COMMAND"
       - name: Deterministic stand-in executor
         if: env.EXECUTOR == 'standin'
         run: |
