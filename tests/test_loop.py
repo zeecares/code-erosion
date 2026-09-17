@@ -1,5 +1,7 @@
 import json
 import subprocess
+import os
+import sys
 from pathlib import Path
 
 from code_erosion.loop import discover_checks, evaluate
@@ -54,8 +56,48 @@ def test_rejects_baseline_touch_test_weakening_and_no_improvement(tmp_path):
 
 def test_workflow_exposes_model_agnostic_executor_contract():
     workflow = Path('.github/workflows/code-erosion-loop.yml').read_text()
+    action = Path('loop/action.yml').read_text()
     assert 'CODE_EROSION_EXECUTOR_COMMAND' in workflow
-    assert 'CODE_EROSION_PROMPT' in workflow
-    assert 'CODE_EROSION_SUGGESTIONS' in workflow
-    assert 'CODE_EROSION_TARGET' in workflow
-    assert 'anthropics/claude-code-action' not in workflow
+    assert 'CODE_EROSION_PROMPT' in action
+    assert 'CODE_EROSION_SUGGESTIONS' in action
+    assert 'CODE_EROSION_TARGET' in action
+    assert 'anthropics/claude-code-action' not in workflow + action
+
+
+def test_deterministic_fixture_reaches_draft_pr_disposition(tmp_path):
+    from code_erosion.cli import _report_json, scan
+
+    fixture = Path("tests/fixtures/loop-accepted")
+    root = repo(tmp_path)
+    (root / "src.py").unlink()
+    (root / "candidate.py").write_text((fixture / "before.py").read_text())
+    (root / "tests/behavior_check.py").write_text((fixture / "behavior_check.py").read_text())
+    git(root, "add", ".")
+    git(root, "commit", "-m", "complex fixture")
+    before = _report_json(scan(root))
+
+    (root / "candidate.py").write_text((fixture / "after.py").read_text())
+    check = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q"], cwd=root,
+        env={**os.environ, "PYTHONPATH": str(root)}, capture_output=True, text=True,
+    )
+    after = _report_json(scan(root))
+    result = evaluate(root, before, after, {
+        "passed": check.returncode == 0,
+        "results": [{"command": "python -m pytest -q", "exit_code": check.returncode}],
+    })
+    assert result["accepted"] is True
+    assert result["disposition"] == "open_draft_pr"
+    assert result["erosion_delta"] < 0
+
+    workflow = Path(".github/workflows/code-erosion-loop.yml").read_text()
+    assert "steps.candidate.outputs.disposition == 'open_draft_pr'" in workflow
+    assert "draft: true" in workflow
+
+
+def test_noop_standin_discards():
+    root = Path(".")
+    result = evaluate(root, {"erosion": .5, "verbosity": .2},
+                      {"erosion": .5, "verbosity": .2}, {"passed": True})
+    assert result["accepted"] is False
+    assert result["disposition"] == "discard"
