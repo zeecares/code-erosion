@@ -34,72 +34,19 @@ jobs:
           if gh pr list --state open --json headRefName --jq '.[].headRefName' | grep -q '^code-erosion-loop/'; then
             echo "An open loop PR already exists; stopping."; exit 1
           fi
-      - uses: actions/setup-python@v5
-        with: {python-version: "3.12"}
-      - name: Install scanner and test runner
-        run: python -m pip install . pytest
-      - name: Scan and prepare top offender
-        run: |
-          mkdir -p "$RUNNER_TEMP/erosion-loop"
-          code-erosion . --json --suggestions-out "$RUNNER_TEMP/erosion-loop/suggestions.json" \
-            --agent-instructions-out "$RUNNER_TEMP/erosion-loop/agent-instructions.md" \
-            > "$RUNNER_TEMP/erosion-loop/before.json"
-          python -m code_erosion.loop discover-checks . > "$RUNNER_TEMP/erosion-loop/checks-to-run.json"
-          test "$(python -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["suggestions"]))' "$RUNNER_TEMP/erosion-loop/suggestions.json")" -gt 0
-      - name: Run bring-your-own executor
-        if: env.EXECUTOR == 'command'
+      - name: Run one guarded candidate
+        id: candidate
+        uses: ./loop
         env:
-          CODE_EROSION_EXECUTOR_INSTALL: ${{ vars.CODE_EROSION_EXECUTOR_INSTALL }}
-          CODE_EROSION_EXECUTOR_COMMAND: ${{ vars.CODE_EROSION_EXECUTOR_COMMAND }}
-          CODE_EROSION_PROMPT: ${{ runner.temp }}/erosion-loop/agent-instructions.md
-          CODE_EROSION_SUGGESTIONS: ${{ runner.temp }}/erosion-loop/suggestions.json
-          CODE_EROSION_TARGET: ${{ runner.temp }}/erosion-loop/target.json
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: |
-          test -n "$CODE_EROSION_EXECUTOR_COMMAND" || {
-            echo "Set the CODE_EROSION_EXECUTOR_COMMAND repository variable."; exit 1;
-          }
-          python -c 'import json,os; s=json.load(open(os.environ["CODE_EROSION_SUGGESTIONS"])); json.dump(s["suggestions"][0], open(os.environ["CODE_EROSION_TARGET"], "w"), indent=2)'
-          if [ -n "$CODE_EROSION_EXECUTOR_INSTALL" ]; then
-            bash -lc "$CODE_EROSION_EXECUTOR_INSTALL"
-          fi
-          # Repository variables are trusted configuration, never PR-controlled text.
-          # The command receives file paths and edits this checkout in place.
-          bash -lc "$CODE_EROSION_EXECUTOR_COMMAND"
-      - name: Deterministic stand-in executor
-        if: env.EXECUTOR == 'standin'
-        run: |
-          printf '%s\n' 'Stand-in executor ran; it intentionally makes no source change.' \
-            > .code-erosion-loop-standin.txt
-      - name: Run every discovered check
-        id: checks
-        continue-on-error: true
-        run: |
-          python - <<'PY'
-          import json, subprocess, os
-          path=os.path.join(os.environ['RUNNER_TEMP'],'erosion-loop','checks-to-run.json')
-          commands=json.load(open(path)); results=[]; passed=bool(commands)
-          for command in commands:
-              run=subprocess.run(command, shell=True)
-              results.append({'command': command, 'exit_code': run.returncode})
-              passed = passed and run.returncode == 0
-          json.dump({'passed': passed, 'results': results}, open(os.path.join(os.environ['RUNNER_TEMP'],'erosion-loop','checks.json'),'w'))
-          PY
-      - name: Measure and judge candidate
-        id: judge
-        continue-on-error: true
-        run: |
-          code-erosion . --json > "$RUNNER_TEMP/erosion-loop/after.json"
-          python -m code_erosion.loop evaluate . \
-            --before "$RUNNER_TEMP/erosion-loop/before.json" \
-            --after "$RUNNER_TEMP/erosion-loop/after.json" \
-            --checks "$RUNNER_TEMP/erosion-loop/checks.json" \
-            --suggestions "$RUNNER_TEMP/erosion-loop/suggestions.json" \
-            --executor "$EXECUTOR" --out "$RUNNER_TEMP/erosion-loop/outcome.json"
+        with:
+          executor: ${{ env.EXECUTOR }}
+          executor-install: ${{ vars.CODE_EROSION_EXECUTOR_INSTALL }}
+          executor-command: ${{ vars.CODE_EROSION_EXECUTOR_COMMAND }}
       - name: Append durable loop memory
         run: |
-          outcome="$RUNNER_TEMP/erosion-loop/outcome.json"
+          outcome="${{ steps.candidate.outputs.outcome }}"
           git fetch origin "$MEMORY_BRANCH" || true
           rm -rf "$RUNNER_TEMP/loop-memory"
           if git show-ref --verify --quiet "refs/remotes/origin/$MEMORY_BRANCH"; then
@@ -116,7 +63,7 @@ jobs:
             commit -m "code-erosion: record loop outcome $GITHUB_RUN_ID"
           git -C "$RUNNER_TEMP/loop-memory" push origin "HEAD:$MEMORY_BRANCH"
       - name: Open accepted candidate as a draft PR
-        if: steps.judge.outcome == 'success'
+        if: steps.candidate.outputs.disposition == 'open_draft_pr'
         uses: peter-evans/create-pull-request@v7
         with:
           branch: code-erosion-loop/${{ github.run_id }}
