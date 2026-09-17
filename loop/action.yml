@@ -1,0 +1,99 @@
+name: code-erosion candidate loop
+description: Run one model-agnostic refactoring candidate and return a guarded disposition.
+inputs:
+  path:
+    description: Repository-relative path to scan.
+    default: "."
+  executor:
+    description: standin or command.
+    default: standin
+  executor-install:
+    description: Optional trusted command that installs the executor.
+    default: ""
+  executor-command:
+    description: Trusted headless executor command. It edits the checkout in place.
+    default: ""
+outputs:
+  accepted:
+    description: Whether the candidate passed every guard.
+    value: ${{ steps.result.outputs.accepted }}
+  disposition:
+    description: open_draft_pr or discard.
+    value: ${{ steps.result.outputs.disposition }}
+  outcome:
+    description: Absolute path to the JSON outcome.
+    value: ${{ steps.result.outputs.outcome }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Install code-erosion
+      shell: bash
+      run: python -m pip install "${{ github.action_path }}/.."
+    - name: Scan and select the rank-1 target
+      shell: bash
+      env:
+        SCAN_PATH: ${{ inputs.path }}
+      run: |
+        set -euo pipefail
+        work="$RUNNER_TEMP/erosion-loop"
+        mkdir -p "$work"
+        code-erosion "$SCAN_PATH" --json --suggestions-out "$work/suggestions.json" \
+          --agent-instructions-out "$work/agent-instructions.md" > "$work/before.json"
+        python -m code_erosion.loop discover-checks . > "$work/checks-to-run.json"
+        python -m code_erosion.loop select-target \
+          --suggestions "$work/suggestions.json" --out "$work/target.json"
+    - name: Run bring-your-own executor
+      if: inputs.executor == 'command'
+      shell: bash
+      env:
+        CODE_EROSION_EXECUTOR_INSTALL: ${{ inputs.executor-install }}
+        CODE_EROSION_EXECUTOR_COMMAND: ${{ inputs.executor-command }}
+        CODE_EROSION_PROMPT: ${{ runner.temp }}/erosion-loop/agent-instructions.md
+        CODE_EROSION_SUGGESTIONS: ${{ runner.temp }}/erosion-loop/suggestions.json
+        CODE_EROSION_TARGET: ${{ runner.temp }}/erosion-loop/target.json
+      run: |
+        set -euo pipefail
+        test -n "$CODE_EROSION_EXECUTOR_COMMAND" || {
+          echo "executor-command is required for executor=command"; exit 1;
+        }
+        if [ -n "$CODE_EROSION_EXECUTOR_INSTALL" ]; then
+          bash -lc "$CODE_EROSION_EXECUTOR_INSTALL"
+        fi
+        bash -lc "$CODE_EROSION_EXECUTOR_COMMAND"
+    - name: Deterministic no-op stand-in
+      if: inputs.executor == 'standin'
+      shell: bash
+      run: printf '%s\n' 'Stand-in intentionally produced no source patch.' > .code-erosion-loop-standin.txt
+    - name: Run discovered repository checks
+      shell: bash
+      run: |
+        python -m code_erosion.loop run-checks \
+          --commands "$RUNNER_TEMP/erosion-loop/checks-to-run.json" \
+          --out "$RUNNER_TEMP/erosion-loop/checks.json"
+    - name: Measure and judge candidate
+      id: judge
+      continue-on-error: true
+      shell: bash
+      env:
+        SCAN_PATH: ${{ inputs.path }}
+        EXECUTOR: ${{ inputs.executor }}
+      run: |
+        code-erosion "$SCAN_PATH" --json > "$RUNNER_TEMP/erosion-loop/after.json"
+        python -m code_erosion.loop evaluate . \
+          --before "$RUNNER_TEMP/erosion-loop/before.json" \
+          --after "$RUNNER_TEMP/erosion-loop/after.json" \
+          --checks "$RUNNER_TEMP/erosion-loop/checks.json" \
+          --suggestions "$RUNNER_TEMP/erosion-loop/suggestions.json" \
+          --executor "$EXECUTOR" --out "$RUNNER_TEMP/erosion-loop/outcome.json"
+    - name: Publish disposition
+      id: result
+      shell: bash
+      run: |
+        outcome="$RUNNER_TEMP/erosion-loop/outcome.json"
+        test -f "$outcome"
+        echo "accepted=$(python -c 'import json,sys; print(str(json.load(open(sys.argv[1]))["accepted"]).lower())' "$outcome")" >> "$GITHUB_OUTPUT"
+        echo "disposition=$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["disposition"])' "$outcome")" >> "$GITHUB_OUTPUT"
+        echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
