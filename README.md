@@ -352,3 +352,43 @@ with `git apply`. No executor may declare its own candidate accepted.
 This is autonomous candidate production, not autonomous acceptance: a human
 still reviews and merges the draft. The guard against weakened tests is
 intentionally conservative, not a proof of semantic test quality.
+
+### Reuse the guarded candidate engine
+
+The orchestration core is a composite action at `loop/action.yml`. Another repo
+can run one candidate without copying scanner or judge logic:
+
+```yaml
+- uses: actions/checkout@v4
+  with: { fetch-depth: 0 }
+- name: Install this repo's dependencies first
+  run: npm ci # example; the candidate engine discovers checks, it does not guess setup
+- id: candidate
+  uses: zeecares/code-erosion/loop@main # pin a release/SHA in production
+  env:
+    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }} # only if the chosen CLI needs it
+  with:
+    path: .
+    executor: command
+    executor-install: ${{ vars.CODE_EROSION_EXECUTOR_INSTALL }}
+    executor-command: ${{ vars.CODE_EROSION_EXECUTOR_COMMAND }}
+- if: steps.candidate.outputs.disposition == 'open_draft_pr'
+  uses: peter-evans/create-pull-request@v7
+  with:
+    draft: true
+    branch: code-erosion-loop/${{ github.run_id }}
+    body-path: ${{ steps.candidate.outputs.outcome }}
+```
+
+The action returns `accepted`, `disposition` (`open_draft_pr` or `discard`), and
+the outcome JSON path. The checked-in wrapper adds serialized scheduling,
+one-open-loop-PR enforcement, durable memory, artifact upload, and draft-PR
+creation. Consumers can use that wrapper as a reference while keeping their own
+schedule, credentials, and branch policy.
+
+The test suite includes two deterministic end-to-end proofs. The no-op executor
+is discarded. The accepted fixture refactors an eleven-branch lookup into a
+data table, runs behavior tests covering all cases and fallback, demonstrates a
+strict erosion reduction, returns `open_draft_pr`, and pins the wrapper's
+`draft: true` handoff. This proves the acceptance plumbing without claiming that
+a deterministic fixture is a model run.
