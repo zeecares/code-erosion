@@ -478,11 +478,12 @@ def _alias_wrapper(
     known_function_names: frozenset[str],
 ) -> list[TrivialWrapper]:
     """Return module-level function aliases represented by one statement."""
-    aliases: list[tuple[Node, Node]] = []
+    aliases: list[tuple[Node, Node, Node]] = []
     if statement.type == "expression_statement" and statement.named_children:
         assignment = statement.named_children[0]
         if assignment.type == "assignment" and len(assignment.named_children) == 2:
-            aliases.append(tuple(assignment.named_children))
+            target, value = assignment.named_children
+            aliases.append((target, value, statement))
     elif statement.type in {"lexical_declaration", "variable_declaration"}:
         for declaration in statement.named_children:
             if declaration.type != "variable_declarator":
@@ -490,10 +491,10 @@ def _alias_wrapper(
             name = declaration.child_by_field_name("name")
             value = declaration.child_by_field_name("value")
             if name is not None and value is not None:
-                aliases.append((name, value))
+                aliases.append((name, value, declaration))
 
     wrappers = []
-    for target, value in aliases:
+    for target, value, span in aliases:
         if target.type != "identifier" or value.type not in {
             "identifier", "attribute", "member_expression",
         }:
@@ -508,8 +509,8 @@ def _alias_wrapper(
             TrivialWrapper(
                 file=file_path,
                 name=target_text,
-                start_line=statement.start_point[0] + 1,
-                end_line=statement.end_point[0] + 1,
+                start_line=span.start_point[0] + 1,
+                end_line=span.end_point[0] + 1,
             )
         )
     return wrappers
@@ -537,7 +538,11 @@ def detect_trivial_wrappers(
     aliases use ``name = function``; TypeScript aliases use declarations such
     as ``const name = function``.
     """
-    known_names = known_function_names or _known_function_names(parsed_files)
+    known_names = (
+        known_function_names
+        if known_function_names is not None
+        else _known_function_names(parsed_files)
+    )
     wrappers: list[TrivialWrapper] = []
     for file_path, _source, tree, spec, _sloc in parsed_files:
         for node in iter_nodes(tree.root_node):
