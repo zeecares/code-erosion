@@ -1,14 +1,30 @@
 {
-  "schema": 1,
+  "schema": 2,
   "tool": "code-erosion",
-  "created": "2026-09-19T09:06:17Z",
+  "created": "2026-09-19T09:15:20Z",
   "metrics": {
-    "verbosity": 0.12993630573248408,
-    "erosion": 0.5242425734997531,
-    "total_loc": 2355,
+    "verbosity": 0.12778904665314403,
+    "erosion": 0.5230496789716538,
+    "total_loc": 2465,
     "files_scanned": 19,
-    "total_functions": 132,
-    "high_cc_functions": 15
+    "total_functions": 140,
+    "high_cc_functions": 16,
+    "production": {
+      "verbosity": 0.1529051987767584,
+      "erosion": 0.6292189557431058,
+      "total_loc": 1635,
+      "files_scanned": 9,
+      "total_functions": 63,
+      "high_cc_functions": 13
+    },
+    "test": {
+      "verbosity": 0.0783132530120482,
+      "erosion": 0.2601658195381229,
+      "total_loc": 830,
+      "files_scanned": 10,
+      "total_functions": 77,
+      "high_cc_functions": 3
+    }
   },
   "files": {
     "code_erosion/__init__.py": {
@@ -20,16 +36,16 @@
       "verbosity": 0.0
     },
     "code_erosion/baseline.py": {
-      "sloc": 191,
-      "verbosity": 0.178
+      "sloc": 215,
+      "verbosity": 0.1907
     },
     "code_erosion/cli.py": {
-      "sloc": 332,
-      "verbosity": 0.2048
+      "sloc": 381,
+      "verbosity": 0.1785
     },
     "code_erosion/core.py": {
-      "sloc": 541,
-      "verbosity": 0.1941
+      "sloc": 540,
+      "verbosity": 0.1944
     },
     "code_erosion/history.py": {
       "sloc": 92,
@@ -41,7 +57,7 @@
     },
     "code_erosion/loop.py": {
       "sloc": 130,
-      "verbosity": 0.0538
+      "verbosity": 0.0692
     },
     "code_erosion/suggestions.py": {
       "sloc": 148,
@@ -60,8 +76,8 @@
       "verbosity": 0.0
     },
     "tests/test_baseline.py": {
-      "sloc": 147,
-      "verbosity": 0.0136
+      "sloc": 161,
+      "verbosity": 0.0124
     },
     "tests/test_history.py": {
       "sloc": 97,
@@ -72,7 +88,7 @@
       "verbosity": 0.109
     },
     "tests/test_languages.py": {
-      "sloc": 108,
+      "sloc": 132,
       "verbosity": 0.0
     },
     "tests/test_loop.py": {
@@ -96,103 +112,124 @@
       "high": false,
       "line": 30
     },
-    "code_erosion/baseline.py::snapshot_from_report": {
-      "cc": 5,
-      "sloc": 45,
-      "mass": 33.5,
+    "code_erosion/baseline.py::_corpus_metrics": {
+      "cc": 2,
+      "sloc": 11,
+      "mass": 6.6,
       "high": false,
       "line": 37
+    },
+    "code_erosion/baseline.py::snapshot_from_report": {
+      "cc": 5,
+      "sloc": 47,
+      "mass": 34.3,
+      "high": false,
+      "line": 50
     },
     "code_erosion/baseline.py::write_baseline": {
       "cc": 1,
       "sloc": 5,
       "mass": 2.2,
       "high": false,
-      "line": 87
+      "line": 102
     },
     "code_erosion/baseline.py::load_baseline": {
-      "cc": 3,
-      "sloc": 7,
-      "mass": 7.9,
+      "cc": 4,
+      "sloc": 12,
+      "mass": 13.9,
       "high": false,
-      "line": 94
+      "line": 109
     },
     "code_erosion/baseline.py::gate_pass": {
       "cc": 1,
       "sloc": 2,
       "mass": 1.4,
       "high": false,
-      "line": 121
+      "line": 143
     },
     "code_erosion/baseline.py::diff_against_baseline": {
       "cc": 22,
-      "sloc": 42,
-      "mass": 142.6,
+      "sloc": 44,
+      "mass": 145.9,
       "high": true,
-      "line": 125
+      "line": 147
     },
     "code_erosion/baseline.py::_fmt_delta": {
       "cc": 1,
       "sloc": 2,
       "mass": 1.4,
       "high": false,
-      "line": 175
+      "line": 199
     },
     "code_erosion/baseline.py::render_markdown": {
       "cc": 14,
-      "sloc": 60,
-      "mass": 108.4,
+      "sloc": 62,
+      "mass": 110.2,
       "high": true,
-      "line": 179
+      "line": 203
     },
     "code_erosion/cli.py::_rule_texts": {
       "cc": 9,
       "sloc": 37,
       "mass": 54.7,
       "high": false,
-      "line": 41
+      "line": 42
     },
     "code_erosion/cli.py::_ast_grep_binary": {
       "cc": 7,
       "sloc": 27,
       "mass": 36.4,
       "high": false,
-      "line": 88
+      "line": 89
     },
     "code_erosion/cli.py::run_ast_grep": {
       "cc": 7,
       "sloc": 51,
       "mass": 50.0,
       "high": false,
-      "line": 123
+      "line": 124
+    },
+    "code_erosion/cli.py::_is_test_path": {
+      "cc": 10,
+      "sloc": 14,
+      "mass": 37.4,
+      "high": false,
+      "line": 178
+    },
+    "code_erosion/cli.py::_build_corpus_report": {
+      "cc": 5,
+      "sloc": 12,
+      "mass": 17.3,
+      "high": false,
+      "line": 195
     },
     "code_erosion/cli.py::scan": {
-      "cc": 6,
-      "sloc": 29,
-      "mass": 32.3,
-      "high": false,
-      "line": 177
+      "cc": 11,
+      "sloc": 30,
+      "mass": 60.2,
+      "high": true,
+      "line": 209
     },
     "code_erosion/cli.py::_report_json": {
-      "cc": 3,
-      "sloc": 9,
-      "mass": 9.0,
+      "cc": 4,
+      "sloc": 17,
+      "mass": 16.5,
       "high": false,
-      "line": 211
+      "line": 243
     },
     "code_erosion/cli.py::_print_human": {
-      "cc": 9,
-      "sloc": 40,
-      "mass": 56.9,
+      "cc": 10,
+      "sloc": 47,
+      "mass": 68.6,
       "high": false,
-      "line": 222
+      "line": 262
     },
     "code_erosion/cli.py::main": {
-      "cc": 18,
-      "sloc": 110,
-      "mass": 188.8,
+      "cc": 19,
+      "sloc": 117,
+      "mass": 205.5,
       "high": true,
-      "line": 266
+      "line": 313
     },
     "code_erosion/core.py::walk_files": {
       "cc": 9,
@@ -329,8 +366,8 @@
     },
     "code_erosion/core.py::_function_cc": {
       "cc": 8,
-      "sloc": 14,
-      "mass": 29.9,
+      "sloc": 12,
+      "mass": 27.7,
       "high": false,
       "line": 360
     },
@@ -339,35 +376,35 @@
       "sloc": 53,
       "mass": 116.5,
       "high": true,
-      "line": 380
+      "line": 378
     },
     "code_erosion/core.py::detect_trivial_wrappers": {
       "cc": 41,
       "sloc": 82,
       "mass": 371.3,
       "high": true,
-      "line": 451
+      "line": 449
     },
     "code_erosion/core.py::verbosity": {
       "cc": 2,
       "sloc": 2,
       "mass": 2.8,
       "high": false,
-      "line": 574
+      "line": 573
     },
     "code_erosion/core.py::build_report": {
       "cc": 15,
       "sloc": 77,
       "mass": 131.6,
       "high": true,
-      "line": 602
+      "line": 601
     },
     "code_erosion/core.py::span_lines": {
       "cc": 3,
       "sloc": 3,
       "mass": 5.2,
       "high": false,
-      "line": 625
+      "line": 624
     },
     "code_erosion/history.py::history_record": {
       "cc": 2,
@@ -601,9 +638,9 @@
       "line": 134
     },
     "tests/test_baseline.py::test_seed_baseline_without_detail_tolerated": {
-      "cc": 4,
-      "sloc": 16,
-      "mass": 16.0,
+      "cc": 3,
+      "sloc": 9,
+      "mass": 9.0,
       "high": false,
       "line": 145
     },
@@ -612,14 +649,28 @@
       "sloc": 14,
       "mass": 22.4,
       "high": false,
-      "line": 163
+      "line": 156
     },
     "tests/test_baseline.py::test_markdown_pass_copy": {
       "cc": 2,
       "sloc": 5,
       "mass": 4.5,
       "high": false,
+      "line": 172
+    },
+    "tests/test_baseline.py::test_gate_uses_production_erosion_not_dilutable_combined_score": {
+      "cc": 4,
+      "sloc": 16,
+      "mass": 16.0,
+      "high": false,
       "line": 179
+    },
+    "tests/test_baseline.py::test_old_baseline_schema_requires_loud_migration": {
+      "cc": 1,
+      "sloc": 5,
+      "mass": 2.2,
+      "high": false,
+      "line": 197
     },
     "tests/test_history.py::make_report": {
       "cc": 1,
@@ -879,6 +930,27 @@
       "mass": 23.2,
       "high": false,
       "line": 181
+    },
+    "tests/test_languages.py::test_test_corpus_patterns": {
+      "cc": 2,
+      "sloc": 4,
+      "mass": 4.0,
+      "high": false,
+      "line": 200
+    },
+    "tests/test_languages.py::test_production_paths_are_not_classified_by_substring": {
+      "cc": 2,
+      "sloc": 4,
+      "mass": 4.0,
+      "high": false,
+      "line": 210
+    },
+    "tests/test_languages.py::test_generated_and_vendor_trees_are_excluded": {
+      "cc": 4,
+      "sloc": 7,
+      "mass": 10.6,
+      "high": false,
+      "line": 216
     },
     "tests/test_loop.py::git": {
       "cc": 1,
