@@ -78,6 +78,43 @@ def test_foreign_binary_shadowing_sg_is_rejected(
         cli.run_ast_grep([tmp_path / "a.py"], "python", [])
 
 
+def test_rule_directory_enumeration_error_is_explicit(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    class BrokenRules:
+        def joinpath(self, _part: str):
+            return self
+
+        def is_dir(self) -> bool:
+            return True
+
+        def iterdir(self):
+            raise PermissionError("denied")
+
+        def __str__(self) -> str:
+            return "broken-rules"
+
+    monkeypatch.setattr(cli, "resource_files", lambda _pkg: BrokenRules())
+    with pytest.raises(cli.RulesUnavailableError, match="cannot be enumerated"):
+        cli.run_ast_grep([tmp_path / "a.py"], "python", [])
+
+
+def test_malformed_ast_grep_output_is_fatal(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli, "_rule_texts", lambda _language: ["id: test\nrule: {pattern: x}"])
+    monkeypatch.setattr(cli, "_ast_grep_binary", lambda: "ast-grep")
+    monkeypatch.setattr(
+        cli.subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            args=[], returncode=0, stdout='{"ruleId":"valid"}\nnot-json\n', stderr=""
+        ),
+    )
+    with pytest.raises(cli.RulesUnavailableError, match="malformed JSON"):
+        cli.run_ast_grep([tmp_path / "a.py"], "python", [])
+
+
 # ------------------------------------------------- built-wheel integration
 
 
