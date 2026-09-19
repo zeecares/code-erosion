@@ -268,3 +268,36 @@ const memberAlias = api.target;
         ("sample.ts", "alias"),
         ("sample.ts", "memberAlias"),
     }
+
+
+def test_alias_wrapper_reports_declarator_lines_for_multiline_declarations(tmp_path: Path):
+    from code_erosion.core import detect_trivial_wrappers
+
+    source = (
+        "function target(x: number): number { return x + 1; }\n"
+        "const multiA = target,\n"
+        "  multiB = api.target;\n"
+    )
+    path = tmp_path / "multi.ts"
+    path.write_text(source)
+    spec = spec_for_suffix(path.suffix)
+    tree = parse_source(source, spec)
+    parsed = [(path, source, tree, spec, sloc_lines(source, tree, spec))]
+
+    wrappers = {w.name: (w.start_line, w.end_line) for w in detect_trivial_wrappers(parsed)}
+    assert wrappers["multiA"] == (2, 2)
+    assert wrappers["multiB"] == (3, 3)
+
+
+def test_explicit_empty_known_function_names_disables_aliases(tmp_path: Path):
+    from code_erosion.core import detect_trivial_wrappers
+
+    source = "def target(x):\n    return x\n\nalias = target\n"
+    path = tmp_path / "aliases.py"
+    path.write_text(source)
+    spec = spec_for_suffix(path.suffix)
+    tree = parse_source(source, spec)
+    parsed = [(path, source, tree, spec, sloc_lines(source, tree, spec))]
+
+    wrappers = detect_trivial_wrappers(parsed, known_function_names=frozenset())
+    assert [wrapper.name for wrapper in wrappers] == ["target"]
