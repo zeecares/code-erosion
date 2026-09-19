@@ -446,101 +446,113 @@ class TrivialWrapper:
     end_line: int
 
 
+def _function_wrapper(
+    node: Node, file_path: Path, spec: LanguageSpec,
+) -> TrivialWrapper | None:
+    """Return wrapper metadata when a callable is a single return statement."""
+    if spec.name == "typescript" and node.type == "arrow_function":
+        body = node.child_by_field_name("body")
+        if body is not None and body.type != "statement_block":
+            return None  # expression-bodied arrows are idiomatic TypeScript
+    body = node.child_by_field_name("body")
+    if body is None:
+        return None
+    statements = [
+        statement
+        for statement in body.named_children
+        if not _is_plain_string_node(statement, spec)
+    ]
+    if len(statements) != 1 or statements[0].type != "return_statement":
+        return None
+    return TrivialWrapper(
+        file=file_path,
+        name=_symbol_name(node, spec),
+        start_line=node.start_point[0] + 1,
+        end_line=node.end_point[0] + 1,
+    )
+
+
+def _alias_wrapper(
+    statement: Node,
+    file_path: Path,
+    known_function_names: frozenset[str],
+) -> list[TrivialWrapper]:
+    """Return module-level function aliases represented by one statement."""
+    aliases: list[tuple[Node, Node, Node]] = []
+    if statement.type == "expression_statement" and statement.named_children:
+        assignment = statement.named_children[0]
+        if assignment.type == "assignment" and len(assignment.named_children) == 2:
+            target, value = assignment.named_children
+            aliases.append((target, value, statement))
+    elif statement.type in {"lexical_declaration", "variable_declaration"}:
+        for declaration in statement.named_children:
+            if declaration.type != "variable_declarator":
+                continue
+            name = declaration.child_by_field_name("name")
+            value = declaration.child_by_field_name("value")
+            if name is not None and value is not None:
+                aliases.append((name, value, declaration))
+
+    wrappers = []
+    for target, value, span in aliases:
+        if target.type != "identifier" or value.type not in {
+            "identifier", "attribute", "member_expression",
+        }:
+            continue
+        if target.text is None or value.text is None:
+            continue
+        target_text = target.text.decode()
+        value_text = value.text.decode()
+        if value_text.split(".")[-1] not in known_function_names or target_text == value_text:
+            continue
+        wrappers.append(
+            TrivialWrapper(
+                file=file_path,
+                name=target_text,
+                start_line=span.start_point[0] + 1,
+                end_line=span.end_point[0] + 1,
+            )
+        )
+    return wrappers
+
+
+def _known_function_names(
+    parsed_files: list[tuple[Path, str, object, LanguageSpec, frozenset[int]]],
+) -> frozenset[str]:
+    return frozenset(
+        _symbol_name(node, spec)
+        for _path, _source, tree, spec, _sloc in parsed_files
+        for node in iter_nodes(tree.root_node)
+        if node.type in spec.function_node_types
+    )
+
+
 def detect_trivial_wrappers(
     parsed_files: list[tuple[Path, str, object, LanguageSpec, frozenset[int]]],
     known_function_names: frozenset[str] | None = None,
 ) -> list[TrivialWrapper]:
-    """Trivial wrappers per scb-check 0.1.3:
+    """Detect single-return callables and module-level aliases per scb-check 0.1.3.
 
-    - single-return functions: exactly one executable body statement
-      (docstrings excluded) and it is a return_statement. Any return
-      value counts - a delegating call is not required.
-    - module-level aliases: `name = identifier_or_attribute` where the
-      value resolves to a function defined in the scanned set.
-
-    TypeScript port: single-return functions flagged identically;
-    expression-bodied arrow functions are NOT flagged (idiomatic TS,
-    documented in the README). Aliases use `const name = otherFn`.
+    A single return counts even when it does not delegate. TypeScript
+    expression-bodied arrows remain exempt because they are idiomatic. Python
+    aliases use ``name = function``; TypeScript aliases use declarations such
+    as ``const name = function``.
     """
+    known_names = (
+        known_function_names
+        if known_function_names is not None
+        else _known_function_names(parsed_files)
+    )
     wrappers: list[TrivialWrapper] = []
-    if known_function_names is None:
-        known = frozenset()
-        for _p, _s, tree, spec, _sloc in parsed_files:
-            for node in iter_nodes(tree.root_node):
-                if node.type in spec.function_node_types:
-                    known |= {_symbol_name(node, spec)}
-        known_function_names = frozenset(known)
-
     for file_path, _source, tree, spec, _sloc in parsed_files:
         for node in iter_nodes(tree.root_node):
-            if node.type in spec.function_node_types:
-                if spec.name == "typescript" and node.type == "arrow_function":
-                    body = node.child_by_field_name("body")
-                    if body is not None and body.type != "statement_block":
-                        continue  # expression-bodied arrow: idiomatic TS
-                body = node.child_by_field_name("body")
-                if body is None:
-                    continue
-                statements = [
-                    s for s in body.named_children
-                    if not _is_plain_string_node(s, spec)
-                ]
-                if len(statements) == 1 and statements[0].type == "return_statement":
-                    wrappers.append(
-                        TrivialWrapper(
-                            file=file_path,
-                            name=_symbol_name(node, spec),
-                            start_line=node.start_point[0] + 1,
-                            end_line=node.end_point[0] + 1,
-                        )
-                    )
-        # Module-level aliases.
+            if node.type not in spec.function_node_types:
+                continue
+            wrapper = _function_wrapper(node, file_path, spec)
+            if wrapper is not None:
+                wrappers.append(wrapper)
         for statement in tree.root_node.named_children:
-            target_text = value_text = None
-            if statement.type in {"expression_statement"} and statement.named_children:
-                assign = statement.named_children[0]
-                if assign.type == "assignment" and len(assign.named_children) == 2:
-                    target, value = assign.named_children
-                    if target.type == "identifier" and value.type in {
-                        "identifier", "attribute",
-                    }:
-                        target_text = target.text.decode() if target.text else None
-                        value_text = value.text.decode() if value.text else None
-            elif statement.type in {"lexical_declaration", "variable_declaration"}:
-                for decl in statement.named_children:
-                    if decl.type != "variable_declarator":
-                        continue
-                    tname = decl.child_by_field_name("name")
-                    tval = decl.child_by_field_name("value")
-                    if (
-                        tname is not None and tval is not None
-                        and tname.type == "identifier"
-                        and tval.type in {"identifier", "member_expression"}
-                        and tname.text and tval.text
-                    ):
-                        t, v = tname.text.decode(), tval.text.decode()
-                        if v.split(".")[-1] in known_function_names and t != v:
-                            wrappers.append(
-                                TrivialWrapper(
-                                    file=file_path,
-                                    name=t,
-                                    start_line=decl.start_point[0] + 1,
-                                    end_line=decl.end_point[0] + 1,
-                                )
-                            )
-            if (
-                target_text and value_text
-                and value_text.split(".")[-1] in known_function_names
-                and target_text != value_text
-            ):
-                wrappers.append(
-                    TrivialWrapper(
-                        file=file_path,
-                        name=target_text,
-                        start_line=statement.start_point[0] + 1,
-                        end_line=statement.end_point[0] + 1,
-                    )
-                )
+            wrappers.extend(_alias_wrapper(statement, file_path, known_names))
     return wrappers
 
 
