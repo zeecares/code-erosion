@@ -21,3 +21,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["code_erosion"]
+
+[tool.setuptools.data-files]
+"rules/python" = ["rules/python/*.yaml"]
+"rules/ts" = ["rules/ts/*.yaml"]
