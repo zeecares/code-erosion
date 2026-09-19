@@ -6,10 +6,12 @@ import argparse
 import dataclasses
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
+from importlib.resources import files as resource_files
 from pathlib import Path
 
 from code_erosion import baseline as baseline_mod
@@ -27,27 +29,98 @@ from code_erosion.core import (
     walk_files,
 )
 
-_RULES_ROOT = Path(__file__).resolve().parent.parent / "rules"
+class RulesUnavailableError(RuntimeError):
+    """The packaged ast-grep rule set cannot be loaded or executed.
+
+    A scan that cannot run its rule set would emit a plausible-looking
+    partial score, so the CLI refuses to report one at all instead of
+    degrading quietly.
+    """
+
+
+def _rule_texts(language: str) -> list[str]:
+    """Return the packaged YAML rule texts for one language, or raise.
+
+    Rules ship as package data under ``code_erosion/rules/<language>/`` and
+    are resolved through importlib.resources, so an installed wheel finds
+    them inside the package rather than beside the repository checkout.
+    The TypeScript directory is ``typescript``, matching the language key
+    the scanner dispatches on.
+    """
+    rules_dir = resource_files("code_erosion").joinpath("rules").joinpath(language)
+    if not rules_dir.is_dir():
+        raise RulesUnavailableError(
+            f"packaged ast-grep rules for {language!r} are missing "
+            f"(expected {rules_dir}); the code-erosion install is incomplete - "
+            "reinstall it rather than trust a partial score"
+        )
+    rule_files = sorted(
+        (entry for entry in rules_dir.iterdir() if entry.name.endswith(".yaml")),
+        key=lambda entry: entry.name,
+    )
+    if not rule_files:
+        raise RulesUnavailableError(
+            f"packaged ast-grep rules for {language!r} are empty under "
+            f"{rules_dir}; the code-erosion install is incomplete - "
+            "reinstall it rather than trust a partial score"
+        )
+    texts: list[str] = []
+    for entry in rule_files:
+        try:
+            texts.append(entry.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError) as exc:
+            raise RulesUnavailableError(
+                f"packaged ast-grep rule {entry.name!r} for {language!r} is "
+                f"unreadable ({exc}); the code-erosion install is incomplete - "
+                "reinstall it rather than trust a partial score"
+            ) from exc
+    return texts
+
+
+def _ast_grep_binary() -> str:
+    """Locate the ast-grep CLI, verifying the candidate really is ast-grep.
+
+    ``sg`` is deprecated by ast-grep itself and collides with the Unix
+    setgroups utility, so ``ast-grep`` is probed first and every candidate
+    must answer ``--version`` as ast-grep before it is trusted with a scan.
+    """
+    rejected: list[str] = []
+    for name in ("ast-grep", "sg"):
+        candidate = shutil.which(name)
+        if candidate is None:
+            continue
+        try:
+            probe = subprocess.run(
+                [candidate, "--version"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=15,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            rejected.append(f"{candidate} (would not run)")
+            continue
+        if probe.returncode == 0 and re.search(
+            r"(?m)^ast-grep \d+\.\d+", probe.stdout
+        ):
+            return candidate
+        rejected.append(f"{candidate} (not ast-grep)")
+    detail = f"; rejected {', '.join(rejected)}" if rejected else ""
+    raise RulesUnavailableError(
+        f"ast-grep binary not found{detail}; the code-erosion install is "
+        "incomplete - reinstall it rather than trust a partial score"
+    )
 
 
 def run_ast_grep(
     files: list[Path], language: str, warnings: list[str]
 ) -> list[AstHit]:
-    """Run bundled ast-grep rules for one language; degrade gracefully."""
-    rules_dir = _RULES_ROOT / language
-    if not files or not rules_dir.is_dir():
+    """Run packaged ast-grep rules for one language; fail loudly if impossible."""
+    if not files:
         return []
-    rule_files = sorted(rules_dir.glob("*.yaml"))
-    if not rule_files:
-        return []
-    sg = shutil.which("sg") or shutil.which("ast-grep")
-    if sg is None:
-        warnings.append(
-            "ast-grep binary not found; AST-rule component skipped "
-            "(verbosity covers clones + trivial wrappers only)"
-        )
-        return []
-    combined = "\n".join(p.read_text(encoding="utf-8") for p in rule_files)
+    rule_texts = _rule_texts(language)
+    sg = _ast_grep_binary()
+    combined = "\n".join(rule_texts)
     with tempfile.NamedTemporaryFile(
         "w", suffix=".yaml", delete=False, encoding="utf-8"
     ) as handle:
@@ -61,15 +134,14 @@ def run_ast_grep(
             check=False,
         )
     except OSError as exc:
-        warnings.append(f"failed to execute ast-grep: {exc}")
-        return []
+        raise RulesUnavailableError(f"failed to execute ast-grep: {exc}") from exc
     finally:
         Path(rules_path).unlink(missing_ok=True)
     if result.returncode != 0:
-        warnings.append(
-            f"ast-grep exited {result.returncode}: {result.stderr.strip()[:300]}"
+        raise RulesUnavailableError(
+            f"ast-grep exited {result.returncode}; the packaged rules did not "
+            f"run: {result.stderr.strip()[:300]}"
         )
-        return []
     hits: list[AstHit] = []
     for line in result.stdout.splitlines():
         if not line.strip():
@@ -223,7 +295,11 @@ def main(argv: list[str] | None = None) -> int:
     if not args.path.exists():
         print(f"path does not exist: {args.path}", file=sys.stderr)
         return 2
-    report = scan(args.path)
+    try:
+        report = scan(args.path)
+    except RulesUnavailableError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     if report.files_scanned == 0:
         print(f"no Python/TypeScript files could be parsed at {args.path}", file=sys.stderr)
         return 2
