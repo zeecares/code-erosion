@@ -27,13 +27,33 @@ python -m code_erosion /path/to/repo --json      # machine-readable report
 Scans `.py` and `.ts/.tsx/.js/.jsx/.mts/.cts/.mjs/.cjs` files, skipping
 `.git`, `node_modules`, build output, caches, and virtualenvs.
 
+### Bundled rules and loud failure
+
+The ast-grep rule sets ship as package data under `code_erosion/rules/` and
+are resolved through `importlib.resources`, so a `pip install`ed copy (wheel
+or source) finds them inside the installed package. A scan that cannot load
+or execute its rule set exits non-zero with an explicit error instead of
+emitting a plausible-looking partial score - that covers missing, empty, or
+unreadable rule files, a missing or shadowed ast-grep binary (`sg` is
+verified to really be ast-grep, since the name collides with the Unix
+setgroups utility), and ast-grep itself erroring out. If you see that error, reinstall code-erosion; do not trust a score
+produced without the full rule set.
+
+Migration note (v0.6.1): the rules moved from the repository-root `rules/`
+directory into the package (`code_erosion/rules/`), and the TypeScript tree
+was renamed `ts` -> `typescript` to match the language key the scanner
+dispatches on. Any external tooling that referenced `rules/ts` directly
+should point at `code_erosion/rules/typescript`. v0.6.0 and earlier wheels
+installed the rules to `<prefix>/rules/`, a location the runtime never
+looked in, so installed scans silently skipped every ast-grep rule.
+
 ## Language support
 
 | Language | Files | Parsing | CC + drivers | Clones | Wrappers | ast-grep rules |
 |---|---|---|---|---|---|---|
-| Python | `.py` | tree-sitter-python + stdlib `tokenize` (scb-check 0.1.3 semantics) | yes | yes | yes | 197 vendored rules (`rules/python/`) |
-| TypeScript | `.ts`, `.tsx`, `.mts`, `.cts` | tree-sitter-typescript (adapted rule set) | yes | yes | yes | 9 analog rules (`rules/ts/`) |
-| JavaScript | `.js`, `.jsx`, `.mjs`, `.cjs` | same TypeScript engine, with a TSX-grammar retry so JSX inside `.js` also parses | yes | yes | yes | 9 analog rules (`rules/ts/`) |
+| Python | `.py` | tree-sitter-python + stdlib `tokenize` (scb-check 0.1.3 semantics) | yes | yes | yes | 197 vendored rules (`code_erosion/rules/python/`) |
+| TypeScript | `.ts`, `.tsx`, `.mts`, `.cts` | tree-sitter-typescript (adapted rule set) | yes | yes | yes | 9 analog rules (`code_erosion/rules/typescript/`) |
+| JavaScript | `.js`, `.jsx`, `.mjs`, `.cjs` | same TypeScript engine, with a TSX-grammar retry so JSX inside `.js` also parses | yes | yes | yes | 9 analog rules (`code_erosion/rules/typescript/`) |
 
 Language semantics worth knowing:
 
@@ -151,7 +171,7 @@ agent band). Embed it with:
 
 The Python engine replicates **scb-check 0.1.3** (the reference implementation
 used by SlopCodeBench, github.com/SprocketLab/slop-code-bench), including its
-bundled 197-rule ast-grep set (vendored under `rules/python/`, Apache-2.0,
+bundled 197-rule ast-grep set (vendored under `code_erosion/rules/python/`, Apache-2.0,
 copyright the SlopCodeBench authors):
 
 - SLOC: lines with executable tokens (stdlib `tokenize`), minus comment-only,
@@ -198,7 +218,7 @@ algorithms with grammar-mapped node types:
   `switch_statement`; identifiers, property identifiers, and shorthand
   property identifiers all normalize to `$VARn`.
 - The AST-grep component is a **partial port**: 9 hand-authored TypeScript
-  analog rules (`rules/ts/`) vs 197 Python rules. It systematically
+  analog rules (`code_erosion/rules/typescript/`) vs 197 Python rules. It systematically
   under-measures the rule component relative to Python, so cross-language
   verbosity comparisons should read the components (`clone_loc`,
   `ast_grep_flagged_loc`, `trivial_wrapper_loc`) separately.
@@ -256,7 +276,7 @@ worklist, tracked as follow-up work rather than silently baselined away.
 
 ## License
 
-MIT (this repo). Vendored `rules/python/*.yaml` are from scb-check 0.1.3,
+MIT (this repo). Vendored `code_erosion/rules/python/*.yaml` are from scb-check 0.1.3,
 Apache-2.0, copyright the SlopCodeBench authors.
 
 ## Agent-ready refactoring suggestions (v0.4)

@@ -1,14 +1,14 @@
 {
   "schema": 1,
   "tool": "code-erosion",
-  "created": "2026-09-16T19:58:46Z",
+  "created": "2026-09-19T09:06:17Z",
   "metrics": {
-    "verbosity": 0.11678435632808257,
-    "erosion": 0.5426627545241656,
-    "total_loc": 1841,
-    "files_scanned": 12,
-    "total_functions": 99,
-    "high_cc_functions": 11
+    "verbosity": 0.12993630573248408,
+    "erosion": 0.5242425734997531,
+    "total_loc": 2355,
+    "files_scanned": 19,
+    "total_functions": 132,
+    "high_cc_functions": 15
   },
   "files": {
     "code_erosion/__init__.py": {
@@ -24,8 +24,8 @@
       "verbosity": 0.178
     },
     "code_erosion/cli.py": {
-      "sloc": 268,
-      "verbosity": 0.1045
+      "sloc": 332,
+      "verbosity": 0.2048
     },
     "code_erosion/core.py": {
       "sloc": 541,
@@ -39,9 +39,25 @@
       "sloc": 126,
       "verbosity": 0.0397
     },
+    "code_erosion/loop.py": {
+      "sloc": 130,
+      "verbosity": 0.0538
+    },
     "code_erosion/suggestions.py": {
       "sloc": 148,
       "verbosity": 0.0608
+    },
+    "tests/fixtures/loop-accepted/after.py": {
+      "sloc": 7,
+      "verbosity": 0.1429
+    },
+    "tests/fixtures/loop-accepted/before.py": {
+      "sloc": 24,
+      "verbosity": 0.9167
+    },
+    "tests/fixtures/loop-accepted/behavior_check.py": {
+      "sloc": 6,
+      "verbosity": 0.0
     },
     "tests/test_baseline.py": {
       "sloc": 147,
@@ -51,8 +67,20 @@
       "sloc": 97,
       "verbosity": 0.0825
     },
+    "tests/test_installed_scan.py": {
+      "sloc": 156,
+      "verbosity": 0.109
+    },
     "tests/test_languages.py": {
       "sloc": 108,
+      "verbosity": 0.0
+    },
+    "tests/test_loop.py": {
+      "sloc": 83,
+      "verbosity": 0.0482
+    },
+    "tests/test_packaging.py": {
+      "sloc": 44,
       "verbosity": 0.0
     },
     "tests/test_suggestions.py": {
@@ -117,40 +145,54 @@
       "high": true,
       "line": 179
     },
+    "code_erosion/cli.py::_rule_texts": {
+      "cc": 9,
+      "sloc": 37,
+      "mass": 54.7,
+      "high": false,
+      "line": 41
+    },
+    "code_erosion/cli.py::_ast_grep_binary": {
+      "cc": 7,
+      "sloc": 27,
+      "mass": 36.4,
+      "high": false,
+      "line": 88
+    },
     "code_erosion/cli.py::run_ast_grep": {
-      "cc": 12,
-      "sloc": 57,
-      "mass": 90.6,
-      "high": true,
-      "line": 33
+      "cc": 7,
+      "sloc": 51,
+      "mass": 50.0,
+      "high": false,
+      "line": 123
     },
     "code_erosion/cli.py::scan": {
       "cc": 6,
       "sloc": 29,
       "mass": 32.3,
       "high": false,
-      "line": 93
+      "line": 177
     },
     "code_erosion/cli.py::_report_json": {
       "cc": 3,
       "sloc": 9,
       "mass": 9.0,
       "high": false,
-      "line": 127
+      "line": 211
     },
     "code_erosion/cli.py::_print_human": {
       "cc": 9,
       "sloc": 40,
       "mass": 56.9,
       "high": false,
-      "line": 138
+      "line": 222
     },
     "code_erosion/cli.py::main": {
-      "cc": 17,
-      "sloc": 106,
-      "mass": 175.0,
+      "cc": 18,
+      "sloc": 110,
+      "mass": 188.8,
       "high": true,
-      "line": 182
+      "line": 266
     },
     "code_erosion/core.py::walk_files": {
       "cc": 9,
@@ -397,6 +439,41 @@
       "high": false,
       "line": 158
     },
+    "code_erosion/loop.py::discover_checks": {
+      "cc": 14,
+      "sloc": 21,
+      "mass": 64.2,
+      "high": true,
+      "line": 15
+    },
+    "code_erosion/loop.py::changed_numstat": {
+      "cc": 4,
+      "sloc": 11,
+      "mass": 13.3,
+      "high": false,
+      "line": 39
+    },
+    "code_erosion/loop.py::run_checks": {
+      "cc": 3,
+      "sloc": 8,
+      "mass": 8.5,
+      "high": false,
+      "line": 52
+    },
+    "code_erosion/loop.py::evaluate": {
+      "cc": 13,
+      "sloc": 28,
+      "mass": 68.8,
+      "high": true,
+      "line": 63
+    },
+    "code_erosion/loop.py::main": {
+      "cc": 9,
+      "sloc": 51,
+      "mass": 64.3,
+      "high": false,
+      "line": 93
+    },
     "code_erosion/suggestions.py::build_suggestions": {
       "cc": 7,
       "sloc": 56,
@@ -431,6 +508,27 @@
       "mass": 6.7,
       "high": false,
       "line": 160
+    },
+    "tests/fixtures/loop-accepted/after.py::choose": {
+      "cc": 1,
+      "sloc": 7,
+      "mass": 2.6,
+      "high": false,
+      "line": 1
+    },
+    "tests/fixtures/loop-accepted/before.py::choose": {
+      "cc": 12,
+      "sloc": 24,
+      "mass": 58.8,
+      "high": true,
+      "line": 1
+    },
+    "tests/fixtures/loop-accepted/behavior_check.py::test_all_cases_and_fallback": {
+      "cc": 4,
+      "sloc": 5,
+      "mass": 8.9,
+      "high": false,
+      "line": 4
     },
     "tests/test_baseline.py::make_report": {
       "cc": 8,
@@ -614,6 +712,97 @@
       "high": false,
       "line": 139
     },
+    "tests/test_installed_scan.py::test_packaged_rules_resolve_for_every_scanner_language": {
+      "cc": 5,
+      "sloc": 5,
+      "mass": 11.2,
+      "high": false,
+      "line": 39
+    },
+    "tests/test_installed_scan.py::test_missing_rule_tree_raises_instead_of_degrading": {
+      "cc": 1,
+      "sloc": 6,
+      "mass": 2.4,
+      "high": false,
+      "line": 47
+    },
+    "tests/test_installed_scan.py::test_empty_rule_tree_raises_instead_of_degrading": {
+      "cc": 1,
+      "sloc": 7,
+      "mass": 2.6,
+      "high": false,
+      "line": 55
+    },
+    "tests/test_installed_scan.py::test_missing_ast_grep_binary_raises": {
+      "cc": 1,
+      "sloc": 6,
+      "mass": 2.4,
+      "high": false,
+      "line": 64
+    },
+    "tests/test_installed_scan.py::test_foreign_binary_shadowing_sg_is_rejected": {
+      "cc": 1,
+      "sloc": 6,
+      "mass": 2.4,
+      "high": false,
+      "line": 72
+    },
+    "tests/test_installed_scan.py::test_rule_directory_enumeration_error_is_explicit": {
+      "cc": 1,
+      "sloc": 15,
+      "mass": 3.9,
+      "high": false,
+      "line": 81
+    },
+    "tests/test_installed_scan.py::joinpath": {
+      "cc": 1,
+      "sloc": 2,
+      "mass": 1.4,
+      "high": false,
+      "line": 85
+    },
+    "tests/test_installed_scan.py::is_dir": {
+      "cc": 1,
+      "sloc": 2,
+      "mass": 1.4,
+      "high": false,
+      "line": 88
+    },
+    "tests/test_installed_scan.py::iterdir": {
+      "cc": 1,
+      "sloc": 2,
+      "mass": 1.4,
+      "high": false,
+      "line": 91
+    },
+    "tests/test_installed_scan.py::__str__": {
+      "cc": 1,
+      "sloc": 2,
+      "mass": 1.4,
+      "high": false,
+      "line": 94
+    },
+    "tests/test_installed_scan.py::test_malformed_ast_grep_output_is_fatal": {
+      "cc": 1,
+      "sloc": 14,
+      "mass": 3.7,
+      "high": false,
+      "line": 102
+    },
+    "tests/test_installed_scan.py::_run_cli": {
+      "cc": 1,
+      "sloc": 11,
+      "mass": 3.3,
+      "high": false,
+      "line": 121
+    },
+    "tests/test_installed_scan.py::test_installed_scan_flags_rules_and_fails_loudly_without_them": {
+      "cc": 18,
+      "sloc": 66,
+      "mass": 146.2,
+      "high": true,
+      "line": 137
+    },
     "tests/test_languages.py::symbols": {
       "cc": 1,
       "sloc": 3,
@@ -690,6 +879,76 @@
       "mass": 23.2,
       "high": false,
       "line": 181
+    },
+    "tests/test_loop.py::git": {
+      "cc": 1,
+      "sloc": 2,
+      "mass": 1.4,
+      "high": false,
+      "line": 10
+    },
+    "tests/test_loop.py::repo": {
+      "cc": 1,
+      "sloc": 10,
+      "mass": 3.2,
+      "high": false,
+      "line": 14
+    },
+    "tests/test_loop.py::test_discovers_python_and_node_checks": {
+      "cc": 2,
+      "sloc": 5,
+      "mass": 4.5,
+      "high": false,
+      "line": 26
+    },
+    "tests/test_loop.py::test_accepts_improving_patch_with_green_checks": {
+      "cc": 3,
+      "sloc": 7,
+      "mass": 7.9,
+      "high": false,
+      "line": 33
+    },
+    "tests/test_loop.py::test_rejects_baseline_touch_test_weakening_and_no_improvement": {
+      "cc": 6,
+      "sloc": 13,
+      "mass": 21.6,
+      "high": false,
+      "line": 42
+    },
+    "tests/test_loop.py::test_workflow_exposes_model_agnostic_executor_contract": {
+      "cc": 6,
+      "sloc": 8,
+      "mass": 17.0,
+      "high": false,
+      "line": 57
+    },
+    "tests/test_loop.py::test_deterministic_fixture_reaches_draft_pr_disposition": {
+      "cc": 6,
+      "sloc": 26,
+      "mass": 30.6,
+      "high": false,
+      "line": 67
+    },
+    "tests/test_loop.py::test_noop_standin_discards": {
+      "cc": 3,
+      "sloc": 6,
+      "mass": 7.3,
+      "high": false,
+      "line": 98
+    },
+    "tests/test_packaging.py::build_wheel": {
+      "cc": 2,
+      "sloc": 20,
+      "mass": 8.9,
+      "high": false,
+      "line": 11
+    },
+    "tests/test_packaging.py::test_wheel_contains_every_bundled_rule": {
+      "cc": 13,
+      "sloc": 18,
+      "mass": 55.2,
+      "high": true,
+      "line": 33
     },
     "tests/test_suggestions.py::report": {
       "cc": 1,
