@@ -1,28 +1,28 @@
 {
   "schema": 2,
   "tool": "code-erosion",
-  "created": "2026-09-19T09:15:20Z",
+  "created": "2026-09-19T10:41:32Z",
   "metrics": {
-    "verbosity": 0.12778904665314403,
-    "erosion": 0.5230496789716538,
-    "total_loc": 2465,
+    "verbosity": 0.12780448717948717,
+    "erosion": 0.46830805290336563,
+    "total_loc": 2496,
     "files_scanned": 19,
-    "total_functions": 140,
+    "total_functions": 144,
     "high_cc_functions": 16,
     "production": {
-      "verbosity": 0.1529051987767584,
-      "erosion": 0.6292189557431058,
-      "total_loc": 1635,
+      "verbosity": 0.1548780487804878,
+      "erosion": 0.563124757634222,
+      "total_loc": 1640,
       "files_scanned": 9,
-      "total_functions": 63,
+      "total_functions": 66,
       "high_cc_functions": 13
     },
     "test": {
-      "verbosity": 0.0783132530120482,
-      "erosion": 0.2601658195381229,
-      "total_loc": 830,
+      "verbosity": 0.07593457943925233,
+      "erosion": 0.25496569823584087,
+      "total_loc": 856,
       "files_scanned": 10,
-      "total_functions": 77,
+      "total_functions": 78,
       "high_cc_functions": 3
     }
   },
@@ -44,8 +44,8 @@
       "verbosity": 0.1785
     },
     "code_erosion/core.py": {
-      "sloc": 540,
-      "verbosity": 0.1944
+      "sloc": 545,
+      "verbosity": 0.2
     },
     "code_erosion/history.py": {
       "sloc": 92,
@@ -88,7 +88,7 @@
       "verbosity": 0.109
     },
     "tests/test_languages.py": {
-      "sloc": 132,
+      "sloc": 158,
       "verbosity": 0.0
     },
     "tests/test_loop.py": {
@@ -378,33 +378,54 @@
       "high": true,
       "line": 378
     },
-    "code_erosion/core.py::detect_trivial_wrappers": {
-      "cc": 41,
-      "sloc": 82,
-      "mass": 371.3,
-      "high": true,
+    "code_erosion/core.py::_function_wrapper": {
+      "cc": 10,
+      "sloc": 23,
+      "mass": 48.0,
+      "high": false,
       "line": 449
+    },
+    "code_erosion/core.py::_alias_wrapper": {
+      "cc": 17,
+      "sloc": 39,
+      "mass": 106.2,
+      "high": true,
+      "line": 475
+    },
+    "code_erosion/core.py::_known_function_names": {
+      "cc": 3,
+      "sloc": 9,
+      "mass": 9.0,
+      "high": false,
+      "line": 518
+    },
+    "code_erosion/core.py::detect_trivial_wrappers": {
+      "cc": 7,
+      "sloc": 16,
+      "mass": 28.0,
+      "high": false,
+      "line": 529
     },
     "code_erosion/core.py::verbosity": {
       "cc": 2,
       "sloc": 2,
       "mass": 2.8,
       "high": false,
-      "line": 573
+      "line": 580
     },
     "code_erosion/core.py::build_report": {
       "cc": 15,
       "sloc": 77,
       "mass": 131.6,
       "high": true,
-      "line": 601
+      "line": 608
     },
     "code_erosion/core.py::span_lines": {
       "cc": 3,
       "sloc": 3,
       "mass": 5.2,
       "high": false,
-      "line": 624
+      "line": 631
     },
     "code_erosion/history.py::history_record": {
       "cc": 2,
@@ -951,6 +972,13 @@
       "mass": 10.6,
       "high": false,
       "line": 216
+    },
+    "tests/test_languages.py::test_trivial_wrapper_detection_preserves_python_and_typescript_semantics": {
+      "cc": 4,
+      "sloc": 26,
+      "mass": 20.4,
+      "high": false,
+      "line": 227
     },
     "tests/test_loop.py::git": {
       "cc": 1,

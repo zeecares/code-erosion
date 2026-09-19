@@ -220,3 +220,51 @@ def test_generated_and_vendor_trees_are_excluded(tmp_path: Path):
         (target / "module.py").write_text("def ignored():\n    return 1\n")
     (tmp_path / "src.py").write_text("def kept():\n    return 1\n")
     assert [path.name for path, _ in walk_files(tmp_path)] == ["src.py"]
+
+# ------------------------------------------------------- trivial wrappers
+
+
+def test_trivial_wrapper_detection_preserves_python_and_typescript_semantics(tmp_path: Path):
+    from code_erosion.core import detect_trivial_wrappers
+
+    cases = {
+        "sample.py": '''def target(x):
+    return x + 1
+
+def documented(x):
+    """A docstring does not count as an executable statement."""
+    return target(x)
+
+def not_wrapper(x):
+    value = target(x)
+    return value
+
+alias = target
+same = same
+''',
+        "sample.ts": '''function target(x) { return x + 1; }
+function block(x) { return target(x); }
+const expression = (x) => target(x);
+const alias = target;
+const memberAlias = api.target;
+''',
+    }
+    parsed = []
+    for name, source in cases.items():
+        path = tmp_path / name
+        path.write_text(source)
+        spec = spec_for_suffix(path.suffix)
+        tree = parse_source(source, spec)
+        parsed.append((path, source, tree, spec, sloc_lines(source, tree, spec)))
+
+    wrappers = detect_trivial_wrappers(parsed)
+    observed = {(wrapper.file.name, wrapper.name) for wrapper in wrappers}
+    assert observed == {
+        ("sample.py", "target"),
+        ("sample.py", "documented"),
+        ("sample.py", "alias"),
+        ("sample.ts", "target"),
+        ("sample.ts", "block"),
+        ("sample.ts", "alias"),
+        ("sample.ts", "memberAlias"),
+    }
