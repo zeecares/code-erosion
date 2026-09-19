@@ -1,13 +1,13 @@
 {
   "schema": 1,
   "tool": "code-erosion",
-  "created": "2026-09-19T08:54:00Z",
+  "created": "2026-09-19T09:06:17Z",
   "metrics": {
-    "verbosity": 0.12705272255834055,
-    "erosion": 0.5294094656949415,
-    "total_loc": 2314,
+    "verbosity": 0.12993630573248408,
+    "erosion": 0.5242425734997531,
+    "total_loc": 2355,
     "files_scanned": 19,
-    "total_functions": 126,
+    "total_functions": 132,
     "high_cc_functions": 15
   },
   "files": {
@@ -24,8 +24,8 @@
       "verbosity": 0.178
     },
     "code_erosion/cli.py": {
-      "sloc": 320,
-      "verbosity": 0.1938
+      "sloc": 332,
+      "verbosity": 0.2048
     },
     "code_erosion/core.py": {
       "sloc": 541,
@@ -68,8 +68,8 @@
       "verbosity": 0.0825
     },
     "tests/test_installed_scan.py": {
-      "sloc": 127,
-      "verbosity": 0.0866
+      "sloc": 156,
+      "verbosity": 0.109
     },
     "tests/test_languages.py": {
       "sloc": 108,
@@ -146,9 +146,9 @@
       "line": 179
     },
     "code_erosion/cli.py::_rule_texts": {
-      "cc": 7,
-      "sloc": 29,
-      "mass": 37.7,
+      "cc": 9,
+      "sloc": 37,
+      "mass": 54.7,
       "high": false,
       "line": 41
     },
@@ -157,42 +157,42 @@
       "sloc": 27,
       "mass": 36.4,
       "high": false,
-      "line": 80
+      "line": 88
     },
     "code_erosion/cli.py::run_ast_grep": {
       "cc": 7,
-      "sloc": 47,
-      "mass": 48.0,
+      "sloc": 51,
+      "mass": 50.0,
       "high": false,
-      "line": 115
+      "line": 123
     },
     "code_erosion/cli.py::scan": {
       "cc": 6,
       "sloc": 29,
       "mass": 32.3,
       "high": false,
-      "line": 165
+      "line": 177
     },
     "code_erosion/cli.py::_report_json": {
       "cc": 3,
       "sloc": 9,
       "mass": 9.0,
       "high": false,
-      "line": 199
+      "line": 211
     },
     "code_erosion/cli.py::_print_human": {
       "cc": 9,
       "sloc": 40,
       "mass": 56.9,
       "high": false,
-      "line": 210
+      "line": 222
     },
     "code_erosion/cli.py::main": {
       "cc": 18,
       "sloc": 110,
       "mass": 188.8,
       "high": true,
-      "line": 254
+      "line": 266
     },
     "code_erosion/core.py::walk_files": {
       "cc": 9,
@@ -747,19 +747,61 @@
       "high": false,
       "line": 72
     },
+    "tests/test_installed_scan.py::test_rule_directory_enumeration_error_is_explicit": {
+      "cc": 1,
+      "sloc": 15,
+      "mass": 3.9,
+      "high": false,
+      "line": 81
+    },
+    "tests/test_installed_scan.py::joinpath": {
+      "cc": 1,
+      "sloc": 2,
+      "mass": 1.4,
+      "high": false,
+      "line": 85
+    },
+    "tests/test_installed_scan.py::is_dir": {
+      "cc": 1,
+      "sloc": 2,
+      "mass": 1.4,
+      "high": false,
+      "line": 88
+    },
+    "tests/test_installed_scan.py::iterdir": {
+      "cc": 1,
+      "sloc": 2,
+      "mass": 1.4,
+      "high": false,
+      "line": 91
+    },
+    "tests/test_installed_scan.py::__str__": {
+      "cc": 1,
+      "sloc": 2,
+      "mass": 1.4,
+      "high": false,
+      "line": 94
+    },
+    "tests/test_installed_scan.py::test_malformed_ast_grep_output_is_fatal": {
+      "cc": 1,
+      "sloc": 14,
+      "mass": 3.7,
+      "high": false,
+      "line": 102
+    },
     "tests/test_installed_scan.py::_run_cli": {
       "cc": 1,
       "sloc": 11,
       "mass": 3.3,
       "high": false,
-      "line": 84
+      "line": 121
     },
     "tests/test_installed_scan.py::test_installed_scan_flags_rules_and_fails_loudly_without_them": {
       "cc": 18,
       "sloc": 66,
       "mass": 146.2,
       "high": true,
-      "line": 100
+      "line": 137
     },
     "tests/test_languages.py::symbols": {
       "cc": 1,
