@@ -48,16 +48,24 @@ def _rule_texts(language: str) -> list[str]:
     the scanner dispatches on.
     """
     rules_dir = resource_files("code_erosion").joinpath("rules").joinpath(language)
-    if not rules_dir.is_dir():
+    try:
+        is_dir = rules_dir.is_dir()
+        rule_files = sorted(
+            (entry for entry in rules_dir.iterdir() if entry.name.endswith(".yaml")),
+            key=lambda entry: entry.name,
+        ) if is_dir else []
+    except OSError as exc:
+        raise RulesUnavailableError(
+            f"packaged ast-grep rules for {language!r} cannot be enumerated "
+            f"under {rules_dir} ({exc}); the code-erosion install is incomplete - "
+            "reinstall it rather than trust a partial score"
+        ) from exc
+    if not is_dir:
         raise RulesUnavailableError(
             f"packaged ast-grep rules for {language!r} are missing "
             f"(expected {rules_dir}); the code-erosion install is incomplete - "
             "reinstall it rather than trust a partial score"
         )
-    rule_files = sorted(
-        (entry for entry in rules_dir.iterdir() if entry.name.endswith(".yaml")),
-        key=lambda entry: entry.name,
-    )
     if not rule_files:
         raise RulesUnavailableError(
             f"packaged ast-grep rules for {language!r} are empty under "
@@ -132,8 +140,9 @@ def run_ast_grep(
             capture_output=True,
             text=True,
             check=False,
+            timeout=300,
         )
-    except OSError as exc:
+    except (OSError, subprocess.TimeoutExpired, UnicodeDecodeError) as exc:
         raise RulesUnavailableError(f"failed to execute ast-grep: {exc}") from exc
     finally:
         Path(rules_path).unlink(missing_ok=True)
@@ -157,8 +166,11 @@ def run_ast_grep(
                     message=str(payload.get("message", "")),
                 )
             )
-        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
-            warnings.append("failed to parse one ast-grep output line")
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise RulesUnavailableError(
+                "ast-grep returned malformed JSON output; refusing to emit a "
+                "partial score"
+            ) from exc
     return sorted(hits, key=lambda h: (h.file.as_posix(), h.line, h.rule_id))
 
 
