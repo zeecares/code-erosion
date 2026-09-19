@@ -47,6 +47,16 @@ should point at `code_erosion/rules/typescript`. v0.6.0 and earlier wheels
 installed the rules to `<prefix>/rules/`, a location the runtime never
 looked in, so installed scans silently skipped every ast-grep rule.
 
+## v0.7 migration: production is the gate
+
+v0.7 reports three explicit views: **production**, **test/spec**, and the legacy **combined** whole-repository score. The CI gate and refactoring loop now evaluate production erosion only. Test/spec and combined metrics remain visible diagnostics, so adding low-erosion tests cannot dilute the gate.
+
+Corpus classification is intentionally conservative. A file is test/spec code when any directory component is exactly `test`, `tests`, `spec`, `specs`, or `__tests__`; Python also recognizes root or nested `test_*.py` and `*_test.py`, while JavaScript/TypeScript recognize `*.test.*` and `*.spec.*`. Broad substrings such as `contest` and `testing_tools` do not match. Dependency, build, generated, and vendor trees are excluded from all corpora. Unusual test layouts should use one of these conventional path shapes; otherwise they remain production because a false test classification would weaken the gate.
+
+On code-erosion's own v0.7 scan, the legacy combined score is 0.523 while the new production score is 0.629 and test/spec is 0.260. This is expected movement from separating the low-erosion test denominator, not a source refactor.
+
+The baseline schema is now 2. Existing schema-1 baselines fail loudly rather than silently falling back to the dilutable whole-repo score. Regenerate once with `code-erosion . --write-baseline .code-erosion.json`, review the production/test split, and commit the movement with the v0.7 upgrade. The combined score remains under the top-level `erosion` and `verbosity` JSON keys for consumers that use it as a diagnostic; new per-corpus reports are under `corpora.production` and `corpora.test`.
+
 ## Language support
 
 | Language | Files | Parsing | CC + drivers | Clones | Wrappers | ast-grep rules |

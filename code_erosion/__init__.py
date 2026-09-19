@@ -14,4 +14,4 @@ support is an adaptation using the same method; see README for the
 documented interpretation choices.
 """
 
-__version__ = "0.6.1"
+__version__ = "0.7.0"

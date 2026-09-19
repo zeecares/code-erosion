@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-BASELINE_SCHEMA = 1
+BASELINE_SCHEMA = 2
 DEFAULT_THRESHOLD = 0.01
 COMMENT_MARKER = "<!-- code-erosion-report -->"
 
@@ -32,6 +32,19 @@ def _relativize(file: str, root: str) -> str:
     if root and file.startswith(root + "/"):
         return file[len(root) + 1 :]
     return file
+
+
+def _corpus_metrics(report: dict, name: str) -> dict:
+    corpus = report.get("corpora", {}).get(name, {})
+    fallback = report if name == "production" else {}
+    return {
+        "verbosity": float(corpus.get("verbosity", fallback.get("verbosity", 0.0))),
+        "erosion": float(corpus.get("erosion", fallback.get("erosion", 0.0))),
+        "total_loc": int(corpus.get("total_loc", fallback.get("total_loc", 0))),
+        "files_scanned": int(corpus.get("files_scanned", fallback.get("files_scanned", 0))),
+        "total_functions": int(corpus.get("total_functions", fallback.get("total_functions", 0))),
+        "high_cc_functions": int(corpus.get("high_cc_functions", fallback.get("high_cc_functions", 0))),
+    }
 
 
 def snapshot_from_report(report: dict) -> dict:
@@ -77,6 +90,8 @@ def snapshot_from_report(report: dict) -> dict:
             "files_scanned": int(report["files_scanned"]),
             "total_functions": int(report["total_functions"]),
             "high_cc_functions": int(report["high_cc_functions"]),
+            "production": _corpus_metrics(report, "production"),
+            "test": _corpus_metrics(report, "test"),
         },
         "files": files,
         "functions": functions,
@@ -95,6 +110,11 @@ def load_baseline(path: Path) -> dict:
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict) or "metrics" not in data:
         raise ValueError(f"not a code-erosion baseline: {path}")
+    if data.get("schema") != BASELINE_SCHEMA:
+        raise ValueError(
+            f"baseline schema {data.get('schema', 'unknown')} is incompatible with schema "
+            f"{BASELINE_SCHEMA}; regenerate it so the gate can compare production separately"
+        )
     data.setdefault("files", {})
     data.setdefault("functions", {})
     return data
@@ -110,6 +130,8 @@ class CheckResult:
     threshold: float
     erosion_delta: float = 0.0
     verbosity_delta: float = 0.0
+    combined_erosion_delta: float = 0.0
+    test_erosion_delta: float = 0.0
     new_high_cc: list[str] = field(default_factory=list)
     resolved_high_cc: list[str] = field(default_factory=list)
     mass_movers_up: list[tuple[str, float, float]] = field(default_factory=list)
@@ -130,8 +152,10 @@ def diff_against_baseline(baseline: dict, current_report: dict, threshold: float
         baseline=baseline,
         current=current,
         threshold=threshold,
-        erosion_delta=cur_m["erosion"] - base_m["erosion"],
-        verbosity_delta=cur_m["verbosity"] - base_m["verbosity"],
+        erosion_delta=cur_m["production"]["erosion"] - base_m["production"]["erosion"],
+        verbosity_delta=cur_m["production"]["verbosity"] - base_m["production"]["verbosity"],
+        combined_erosion_delta=cur_m["erosion"] - base_m["erosion"],
+        test_erosion_delta=cur_m["test"]["erosion"] - base_m["test"]["erosion"],
         has_base_detail=bool(baseline.get("functions") or baseline.get("files")),
     )
 
@@ -185,16 +209,18 @@ def render_markdown(result: CheckResult, *, baseline_path: str, mode: str, trend
         "",
         "| metric | baseline | this PR | delta |",
         "|---|---|---|---|",
-        f"| verbosity | {base_m['verbosity']:.3f} | {cur_m['verbosity']:.3f} | {_fmt_delta(result.verbosity_delta)} |",
-        f"| erosion | {base_m['erosion']:.3f} | {cur_m['erosion']:.3f} | {_fmt_delta(result.erosion_delta)} |",
+        f"| production verbosity | {base_m['production']['verbosity']:.3f} | {cur_m['production']['verbosity']:.3f} | {_fmt_delta(result.verbosity_delta)} |",
+        f"| production erosion (gate) | {base_m['production']['erosion']:.3f} | {cur_m['production']['erosion']:.3f} | {_fmt_delta(result.erosion_delta)} |",
+        f"| test/spec erosion (diagnostic) | {base_m['test']['erosion']:.3f} | {cur_m['test']['erosion']:.3f} | {_fmt_delta(result.test_erosion_delta)} |",
+        f"| combined erosion (diagnostic) | {base_m['erosion']:.3f} | {cur_m['erosion']:.3f} | {_fmt_delta(result.combined_erosion_delta)} |",
         "",
     ]
     if mode == "informational":
-        lines.append(f"**Mode: informational** - nothing fails. Erosion moved {_fmt_delta(result.erosion_delta)} (gate threshold {result.threshold:.3f}).")
+        lines.append(f"**Mode: informational** - nothing fails. Production erosion moved {_fmt_delta(result.erosion_delta)} (gate threshold {result.threshold:.3f}).")
     elif result.gate_pass:
-        lines.append(f"**Gate: PASS** - erosion regression {_fmt_delta(result.erosion_delta)} is within the +{result.threshold:.3f} threshold.")
+        lines.append(f"**Gate: PASS** - production erosion regression {_fmt_delta(result.erosion_delta)} is within the +{result.threshold:.3f} threshold.")
     else:
-        lines.append(f"**Gate: FAIL** - erosion regressed {_fmt_delta(result.erosion_delta)}, beyond the +{result.threshold:.3f} threshold.")
+        lines.append(f"**Gate: FAIL** - production erosion regressed {_fmt_delta(result.erosion_delta)}, beyond the +{result.threshold:.3f} threshold.")
     lines.append("")
 
     if not result.has_base_detail:

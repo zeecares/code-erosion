@@ -73,10 +73,10 @@ def evaluate(root: Path, before: dict, after: dict, checks: dict) -> dict:
         reasons.append("candidate deletes more test lines than it adds: " + ", ".join(weakened))
     if not checks.get("passed", False):
         reasons.append("repository checks did not all pass")
-    before_erosion = float(before["erosion"])
-    after_erosion = float(after["erosion"])
+    before_erosion = float(before.get("corpora", {}).get("production", before)["erosion"])
+    after_erosion = float(after.get("corpora", {}).get("production", after)["erosion"])
     if after_erosion >= before_erosion:
-        reasons.append("erosion did not improve")
+        reasons.append("production erosion did not improve")
     accepted = not reasons
     return {
         "accepted": accepted,

@@ -1,6 +1,6 @@
 import json
-import subprocess
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -51,7 +51,7 @@ def test_rejects_baseline_touch_test_weakening_and_no_improvement(tmp_path):
     assert result["accepted"] is False
     assert "candidate touched the committed baseline" in result["reasons"]
     assert any("deletes more test lines" in reason for reason in result["reasons"])
-    assert "erosion did not improve" in result["reasons"]
+    assert "production erosion did not improve" in result["reasons"]
 
 
 def test_workflow_exposes_model_agnostic_executor_contract():
