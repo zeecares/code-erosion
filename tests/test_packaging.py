@@ -5,11 +5,10 @@ import sys
 import zipfile
 from pathlib import Path
 
+REPO = Path(__file__).resolve().parents[1]
 
-def test_wheel_contains_every_bundled_rule(tmp_path: Path) -> None:
-    """Build the distributable and compare its rules to the source tree exactly."""
-    repo = Path(__file__).resolve().parents[1]
-    wheel_dir = tmp_path / "wheel"
+
+def build_wheel(wheel_dir: Path) -> Path:
     subprocess.run(
         [
             sys.executable,
@@ -21,26 +20,36 @@ def test_wheel_contains_every_bundled_rule(tmp_path: Path) -> None:
             "--wheel-dir",
             str(wheel_dir),
         ],
-        cwd=repo,
+        cwd=REPO,
         check=True,
         capture_output=True,
         text=True,
     )
     wheels = list(wheel_dir.glob("code_erosion-*.whl"))
     assert len(wheels) == 1
+    return wheels[0]
+
+
+def test_wheel_contains_every_bundled_rule(tmp_path: Path) -> None:
+    """Build the distributable and compare its rules to the source tree exactly."""
+    wheel = build_wheel(tmp_path / "wheel")
 
     expected = {
-        path.relative_to(repo).as_posix()
-        for path in (repo / "rules").glob("*/*.yaml")
+        path.relative_to(REPO).as_posix()
+        for path in (REPO / "code_erosion" / "rules").glob("*/*.yaml")
     }
     assert expected
-    assert any(path.startswith("rules/python/") for path in expected)
-    assert any(path.startswith("rules/ts/") for path in expected)
+    assert any(path.startswith("code_erosion/rules/python/") for path in expected)
+    assert any(path.startswith("code_erosion/rules/typescript/") for path in expected)
 
-    with zipfile.ZipFile(wheels[0]) as archive:
-        actual = {
-            name[name.index("rules/") :]
-            for name in archive.namelist()
-            if "rules/" in name and name.endswith(".yaml")
-        }
+    with zipfile.ZipFile(wheel) as archive:
+        names = archive.namelist()
+    actual = {
+        name
+        for name in names
+        if name.startswith("code_erosion/rules/") and name.endswith(".yaml")
+    }
     assert actual == expected
+    # The old data-files mechanism dropped the rules outside the package,
+    # where the runtime never looked. It must not come back.
+    assert not any(".data/" in name for name in names)
