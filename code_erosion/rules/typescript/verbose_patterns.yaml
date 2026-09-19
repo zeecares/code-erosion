@@ -1,0 +1,130 @@
+# TypeScript verbosity rules for code-erosion.
+#
+# These are hand-authored TypeScript analogs of the SlopCodeBench
+# Python AST-grep rule set (scb-check 0.1.3, 197 Python rules). They
+# target the same failure shapes where a direct structural counterpart
+# exists. This is a partial port - see README "Method" for how this
+# affects cross-language comparison.
+---
+id: if-return-boolean-literal
+language: typescript
+severity: warning
+message: "if/else returning boolean literals - return the condition directly"
+metadata:
+  weight: 3
+  category: slop
+rule:
+  any:
+    - pattern: "if ($COND) { return true; } else { return false; }"
+    - pattern: "if ($COND) { return false; } else { return true; }"
+    - pattern: "if ($COND) return true; else return false;"
+    - pattern: "if ($COND) return false; else return true;"
+---
+id: boolean-literal-comparison
+language: typescript
+severity: warning
+message: "Comparison against a boolean literal - use the value directly"
+metadata:
+  weight: 2
+  category: slop
+rule:
+  any:
+    - pattern: "$X === true"
+    - pattern: "$X === false"
+    - pattern: "$X !== true"
+    - pattern: "$X !== false"
+    - pattern: "true === $X"
+    - pattern: "false === $X"
+---
+id: ternary-boolean-literal
+language: typescript
+severity: warning
+message: "Ternary producing boolean literals - use the condition directly"
+metadata:
+  weight: 2
+  category: slop
+rule:
+  any:
+    - pattern: "$COND ? true : false"
+    - pattern: "$COND ? false : true"
+---
+id: redundant-else-after-return
+language: typescript
+severity: warning
+message: "else after an unconditional return is unnecessary nesting"
+metadata:
+  weight: 2
+  category: slop
+rule:
+  kind: if_statement
+  has:
+    field: alternative
+    kind: else_clause
+  all:
+    - has:
+        field: consequence
+        has:
+          kind: return_statement
+          stopBy: end
+    - not:
+        has:
+          field: consequence
+          any:
+            - kind: if_statement
+            - kind: throw_statement
+          stopBy: end
+---
+id: duplicated-if-condition
+language: typescript
+severity: warning
+message: "Same condition in if and else if - later branch is unreachable"
+metadata:
+  weight: 5
+  category: slop
+rule:
+  kind: if_statement
+  pattern: "if ($COND) { $$$ } else if ($COND) { $$$ }"
+---
+id: empty-catch-block
+language: typescript
+severity: warning
+message: "Empty catch block swallows errors silently"
+metadata:
+  weight: 3
+  category: slop
+rule:
+  kind: catch_clause
+  has:
+    kind: statement_block
+    regex: "^\\{\\s*\\}$"
+---
+id: self-assignment
+language: typescript
+severity: warning
+message: "Self-assignment has no effect"
+metadata:
+  weight: 3
+  category: slop
+rule:
+  pattern: "$X = $X;"
+---
+id: verbose-promise-wrap
+language: typescript
+severity: info
+message: "new Promise resolving an immediate value - use Promise.resolve"
+metadata:
+  weight: 1
+  category: slop
+rule:
+  pattern: "new Promise(($RESOLVE, $REJECT) => $RESOLVE($VALUE))"
+---
+id: redundant-template-string
+language: typescript
+severity: info
+message: "Template string without substitutions - use a plain string"
+metadata:
+  weight: 1
+  category: slop
+rule:
+  kind: template_string
+  regex: "^`[^$`]*`$"
