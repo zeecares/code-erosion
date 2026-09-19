@@ -14,7 +14,6 @@ import token as py_token
 import tokenize
 from dataclasses import dataclass, field
 from itertools import groupby
-from operator import attrgetter
 from pathlib import Path
 
 from tree_sitter import Node, Parser
@@ -27,6 +26,7 @@ DEFAULT_EXCLUDED_DIRS = frozenset(
         ".git", ".venv", "venv", "env", ".env", "__pycache__", "build",
         "dist", "node_modules", "site-packages", ".mypy_cache",
         ".pytest_cache", ".ruff_cache", ".tox", ".next", "coverage",
+        "vendor", "vendors", "generated", ".generated",
     }
 )
 
@@ -69,7 +69,7 @@ class ParseError(ValueError):
     pass
 
 
-def parse_source(source: str, spec: LanguageSpec, tsx: bool = False) -> "object":
+def parse_source(source: str, spec: LanguageSpec, tsx: bool = False) -> object:
     language = get_tsx_language() if tsx else get_language(spec)
     parser = Parser(language)
     tree = parser.parse(source.encode("utf-8"))
@@ -364,9 +364,7 @@ def _function_cc(node: Node, spec: LanguageSpec) -> int:
     # the callable a refactoring agent should change.
     count = 0
     for current in iter_nodes(node):
-        if current.type in spec.cc_node_types:
-            count += 1
-        elif (
+        if current.type in spec.cc_node_types or (
             spec.logical_operators
             and current.type == "binary_expression"
             and (op := current.child_by_field_name("operator")) is not None
@@ -565,6 +563,7 @@ class AstHit:
 class FileVerbosity:
     file: Path
     sloc: int
+    corpus: str = "production"
     clone_lines: int = 0
     ast_lines: int = 0
     wrapper_lines: int = 0

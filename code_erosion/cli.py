@@ -29,6 +29,7 @@ from code_erosion.core import (
     walk_files,
 )
 
+
 class RulesUnavailableError(RuntimeError):
     """The packaged ast-grep rule set cannot be loaded or executed.
 
@@ -174,7 +175,38 @@ def run_ast_grep(
     return sorted(hits, key=lambda h: (h.file.as_posix(), h.line, h.rule_id))
 
 
-def scan(root: Path) -> "object":
+def _is_test_path(path: Path, root: Path) -> bool:
+    """Classify conventional test/spec paths without guessing from broad substrings."""
+    try:
+        rel = path.resolve().relative_to(root.resolve())
+    except ValueError:
+        rel = path
+    parts = tuple(part.lower() for part in rel.parts)
+    directories = parts[:-1]
+    name = parts[-1] if parts else ""
+    if any(part in {"test", "tests", "spec", "specs", "__tests__"} for part in directories):
+        return True
+    stem = Path(name).stem.lower()
+    if name.endswith(".py") and (stem.startswith("test_") or stem.endswith("_test")):
+        return True
+    return any(marker in name for marker in (".test.", ".spec."))
+
+
+def _build_corpus_report(root: Path, parsed, hits, parse_failures, warnings):
+    clones = detect_clones(parsed)
+    wrappers = detect_trivial_wrappers(parsed)
+    functions = []
+    for path, _source, tree, spec, sloc in parsed:
+        functions.extend(extract_functions(path, tree, sloc, spec))
+    paths = {row[0] for row in parsed}
+    return build_report(
+        root.resolve(), parsed, clones,
+        [hit for hit in hits if hit.file in paths], wrappers, functions,
+        parse_failures, warnings,
+    )
+
+
+def scan(root: Path) -> object:
     parsed = []
     parse_failures: list[str] = []
     warnings: list[str] = []
@@ -189,12 +221,6 @@ def scan(root: Path) -> "object":
         sloc = sloc_lines(source, tree, spec)
         parsed.append((path, source, tree, spec, sloc))
 
-    clones = detect_clones(parsed)
-    wrappers = detect_trivial_wrappers(parsed)
-    functions = []
-    for path, _s, tree, spec, sloc in parsed:
-        functions.extend(extract_functions(path, tree, sloc, spec))
-
     hits: list[AstHit] = []
     by_language: dict[str, list[Path]] = {}
     for path, _s, _t, spec, _sloc in parsed:
@@ -202,10 +228,16 @@ def scan(root: Path) -> "object":
     for language, lang_files in by_language.items():
         hits.extend(run_ast_grep(lang_files, language, warnings))
 
-    return build_report(
-        root.resolve(), parsed, clones, hits, wrappers, functions,
-        parse_failures, warnings,
-    )
+    combined = _build_corpus_report(root, parsed, hits, parse_failures, warnings)
+    production = [row for row in parsed if not _is_test_path(row[0], root)]
+    tests = [row for row in parsed if _is_test_path(row[0], root)]
+    combined.corpora = {
+        "production": _build_corpus_report(root, production, hits, [], []),
+        "test": _build_corpus_report(root, tests, hits, [], []),
+    }
+    for row in combined.per_file:
+        row.corpus = "test" if _is_test_path(row.file, root) else "production"
+    return combined
 
 
 def _report_json(report) -> dict:
@@ -214,8 +246,16 @@ def _report_json(report) -> dict:
         {**row, "verbosity": row_obj.verbosity}
         for row, row_obj in zip(data["per_file"], report.per_file)
     ]
-    for key in ("root",):
-        data[key] = str(data[key])
+    data["root"] = str(data["root"])
+    data["corpora"] = {}
+    for name, corpus in report.corpora.items():
+        corpus_data = dataclasses.asdict(corpus)
+        corpus_data["root"] = str(corpus_data["root"])
+        corpus_data["per_file"] = [
+            {**row, "verbosity": row_obj.verbosity}
+            for row, row_obj in zip(corpus_data["per_file"], corpus.per_file)
+        ]
+        data["corpora"][name] = corpus_data
     return data
 
 
@@ -234,6 +274,13 @@ def _print_human(report, verbose: bool) -> None:
         f"(high-CC mass {report.high_cc_mass:.1f} / total {report.total_mass:.1f}; "
         f"{report.high_cc_functions} of {report.total_functions} functions CC>10)"
     )
+    print("  corpora             production and test/spec (combined remains diagnostic)")
+    for name in ("production", "test"):
+        corpus = report.corpora[name]
+        print(
+            f"    {name:<10}       {corpus.files_scanned:>4} files  {corpus.total_loc:>6} SLOC  "
+            f"verbosity {corpus.verbosity:.3f}  erosion {corpus.erosion:.3f}"
+        )
     for warning in report.warnings:
         print(f"  warning: {warning}")
     for failure in report.parse_failures:
@@ -247,7 +294,7 @@ def _print_human(report, verbose: bool) -> None:
     for row in sorted(report.per_file, key=lambda r: -r.union_lines):
         rel = row.file.relative_to(report.root) if row.file.is_relative_to(report.root) else row.file
         print(
-            f"  {str(rel):<60} {row.sloc:>6} {row.clone_lines:>6} "
+            f"  {rel!s:<60} {row.sloc:>6} {row.clone_lines:>6} "
             f"{row.ast_lines:>6} {row.wrapper_lines:>6} {row.union_lines:>6} "
             f"{row.verbosity:>6.3f}"
         )
@@ -316,7 +363,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"no Python/TypeScript files could be parsed at {args.path}", file=sys.stderr)
         return 2
     report_json = _report_json(report)
-    suggestions = suggestions_mod.build_suggestions(report_json, top_n=args.suggestions_top)
+    suggestions = suggestions_mod.build_suggestions(
+        report_json["corpora"]["production"], top_n=args.suggestions_top
+    )
     suggestions_mod.write_outputs(suggestions, args.suggestions_out, args.agent_instructions_out)
     if args.suggestions_markdown_out:
         args.suggestions_markdown_out.write_text(
@@ -352,8 +401,13 @@ def main(argv: list[str] | None = None) -> int:
         if not args.check_baseline.exists():
             print(f"baseline not found: {args.check_baseline}", file=sys.stderr)
             return 2
+        try:
+            stored_baseline = baseline_mod.load_baseline(args.check_baseline)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
         result = baseline_mod.diff_against_baseline(
-            baseline_mod.load_baseline(args.check_baseline),
+            stored_baseline,
             report_json,
             args.threshold,
         )
