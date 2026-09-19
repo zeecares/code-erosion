@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from code_erosion import suggestions
 from code_erosion.cli import scan
 from code_erosion.core import (
     ParseError,
@@ -13,7 +14,6 @@ from code_erosion.core import (
     walk_files,
 )
 from code_erosion.languages import PYTHON, TYPESCRIPT, spec_for_suffix
-from code_erosion import suggestions
 
 
 def symbols(source: str, language, name="sample.ts"):
@@ -189,3 +189,34 @@ def test_scan_handles_a_mixed_python_and_js_repo(tmp_path: Path):
     assert languages == {"python", "typescript"}
     names = {f.name for f in report.functions}
     assert {"f", "g", "h"} <= names
+
+# ------------------------------------------------------- corpus classification
+
+@pytest.mark.parametrize("path", [
+    "tests/unit/test_api.py", "test/integration/api_test.py", "spec/model_spec.py",
+    "specs/model.py", "src/__tests__/widget.ts", "src/widget.test.ts",
+    "src/widget.spec.tsx", "test_root.py", "thing_test.py",
+])
+def test_test_corpus_patterns(path: str):
+    from code_erosion.cli import _is_test_path
+    root = Path("/repo")
+    assert _is_test_path(root / path, root)
+
+
+@pytest.mark.parametrize("path", [
+    "src/contest.py", "src/testing_tools.py", "src/spectral.py",
+    "production-tests/report.py", "src/widget.ts", "vendor/widget.py",
+])
+def test_production_paths_are_not_classified_by_substring(path: str):
+    from code_erosion.cli import _is_test_path
+    root = Path("/repo")
+    assert not _is_test_path(root / path, root)
+
+
+def test_generated_and_vendor_trees_are_excluded(tmp_path: Path):
+    for directory in ("vendor", "vendors", "generated", ".generated"):
+        target = tmp_path / directory
+        target.mkdir()
+        (target / "module.py").write_text("def ignored():\n    return 1\n")
+    (tmp_path / "src.py").write_text("def kept():\n    return 1\n")
+    assert [path.name for path, _ in walk_files(tmp_path)] == ["src.py"]

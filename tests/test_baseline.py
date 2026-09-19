@@ -143,21 +143,14 @@ def test_mass_movers_tracked():
 
 
 def test_seed_baseline_without_detail_tolerated():
-    seed = {
-        "schema": 1,
-        "created": "2026-09-13T00:00:00Z",
-        "metrics": {
-            "verbosity": 0.084, "erosion": 0.683, "total_loc": 5800,
-            "files_scanned": 36, "total_functions": 300, "high_cc_functions": 20,
-        },
-        "files": {},
-        "functions": {},
-    }
+    report = make_report(erosion=0.683)
+    seed = baseline.snapshot_from_report(report)
+    seed["files"] = {}
+    seed["functions"] = {}
     result = baseline.diff_against_baseline(seed, make_report(erosion=0.70), threshold=0.01)
     assert not result.gate_pass
-    assert not result.has_base_detail
     md = baseline.render_markdown(result, baseline_path=".code-erosion.json", mode="gate")
-    assert "seed file" in md
+    assert "repo-level metrics only" in md
 
 
 def test_markdown_contents():
@@ -170,7 +163,7 @@ def test_markdown_contents():
     result = baseline.diff_against_baseline(base, current, threshold=0.01)
     md = baseline.render_markdown(result, baseline_path=".code-erosion.json", mode="gate")
     assert md.startswith(baseline.COMMENT_MARKER)
-    assert "| erosion | 0.500 | 0.550 | +0.050 |" in md
+    assert "| production erosion (gate) | 0.500 | 0.550 | +0.050 |" in md
     assert "**Gate: FAIL**" in md
     assert "c.py::fresh" in md
     assert "refresh the baseline" in md
@@ -181,3 +174,28 @@ def test_markdown_pass_copy():
     result = baseline.diff_against_baseline(base, make_report(erosion=0.50), threshold=0.01)
     md = baseline.render_markdown(result, baseline_path=".code-erosion.json", mode="informational")
     assert "**Mode: informational**" in md
+
+
+def test_gate_uses_production_erosion_not_dilutable_combined_score():
+    base_report = make_report(erosion=0.50)
+    base_report["corpora"] = {
+        "production": {**make_report(erosion=0.50), "verbosity": 0.10},
+        "test": {**make_report(erosion=0.10), "verbosity": 0.02},
+    }
+    baseline_data = baseline.snapshot_from_report(base_report)
+    diluted = make_report(erosion=0.25)
+    diluted["corpora"] = {
+        "production": {**make_report(erosion=0.52), "verbosity": 0.10},
+        "test": {**make_report(erosion=0.10), "verbosity": 0.02},
+    }
+    result = baseline.diff_against_baseline(baseline_data, diluted, threshold=0.01)
+    assert result.combined_erosion_delta == pytest.approx(-0.25)
+    assert result.erosion_delta == pytest.approx(0.02)
+    assert not result.gate_pass
+
+
+def test_old_baseline_schema_requires_loud_migration(tmp_path):
+    path = tmp_path / "baseline.json"
+    path.write_text(json.dumps({"schema": 1, "metrics": {"erosion": 0.5}}))
+    with pytest.raises(ValueError, match="regenerate.*production"):
+        baseline.load_baseline(path)
