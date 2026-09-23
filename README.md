@@ -17,8 +17,12 @@ Reference bands from the post (human repos vs agent-generated code):
 
 ## Usage
 
+Install from GitHub, or clone and install editable:
+
 ```bash
-pip install -e .            # pulls tree-sitter grammars + the ast-grep CLI (sg)
+pip install "git+https://github.com/zeecares/code-erosion"
+
+pip install -e .            # from a clone; pulls tree-sitter grammars + the ast-grep CLI (sg)
 python -m code_erosion /path/to/repo
 python -m code_erosion /path/to/repo --verbose   # per-file verbosity + per-function mass tables
 python -m code_erosion /path/to/repo --json      # machine-readable report
