@@ -38,7 +38,9 @@ _DRIVER_HINTS = {
 }
 
 
-def build_suggestions(report: dict, *, top_n: int = 5) -> dict:
+def build_suggestions(
+    report: dict, *, top_n: int = 5, change_counts: dict[str, int] | None = None,
+) -> dict:
     top_n = max(0, top_n)
     root = Path(report["root"])
     total_mass = float(report.get("total_mass", 0.0))
@@ -61,6 +63,7 @@ def build_suggestions(report: dict, *, top_n: int = 5) -> dict:
                 "line": int(driver["line"]),
                 "hint": _DRIVER_HINTS.get(kind, "decision point: find the responsibility or policy seam"),
             })
+        change_count = change_counts.get(rel, 0) if change_counts is not None else 0
         ranked.append({
             "rank": 0,
             "function": func["name"],
@@ -72,6 +75,9 @@ def build_suggestions(report: dict, *, top_n: int = 5) -> dict:
             "sloc": sloc,
             "cyclomatic_complexity": cc,
             "erosion_mass": round(mass, 3),
+            **({"file_changes_90d": change_count,
+                "hotspot_priority": round(mass * max(1, change_count), 3)}
+               if change_counts is not None else {}),
             "share_of_total_mass": round(mass / total_mass, 4) if total_mass else 0,
             "complexity_drivers": drivers,
             "guidance": DISCIPLINE,
@@ -82,7 +88,10 @@ def build_suggestions(report: dict, *, top_n: int = 5) -> dict:
                 "Run code-erosion before and after; treat the score as evidence, not the target.",
             ],
         })
-    ranked.sort(key=lambda item: (-item["erosion_mass"], item["path"], item["start_line"]))
+    ranked.sort(key=lambda item: (
+        -item.get("hotspot_priority", item["erosion_mass"]),
+        -item["erosion_mass"], item["path"], item["start_line"],
+    ))
     ranked = ranked[:top_n]
     for index, item in enumerate(ranked, 1):
         item["rank"] = index
@@ -90,7 +99,11 @@ def build_suggestions(report: dict, *, top_n: int = 5) -> dict:
         "schema": SCHEMA_VERSION,
         "repo_root": str(root),
         "metrics": {"verbosity": report["verbosity"], "erosion": report["erosion"]},
-        "selection": {"top_n": top_n, "threshold": "CC > 10", "count": len(ranked)},
+        "selection": {"top_n": top_n, "threshold": "CC > 10", "count": len(ranked),
+                      **({"ranking": "hotspot_priority", "history_days": 90,
+                          "frequency_scope": "file",
+                          "formula": "erosion_mass * max(1, file_changes_90d)"}
+                         if change_counts is not None else {})},
         "discipline": DISCIPLINE,
         "suggestions": ranked,
     }
@@ -106,7 +119,11 @@ def _markdown_text(value: object) -> str:
 
 
 def render_markdown(payload: dict) -> str:
-    out = ["## Refactoring suggestions", "", "Ranked by erosion mass. Fix the code, not the score.", ""]
+    hotspots = payload["selection"].get("ranking") == "hotspot_priority"
+    out = ["## Refactoring suggestions", "",
+           ("Ranked by hotspot priority (erosion mass x recent file changes). "
+            "File-level frequency is context, not proof this function changed. Fix the code, not the score."
+            if hotspots else "Ranked by erosion mass. Fix the code, not the score."), ""]
     if not payload["suggestions"]:
         return "\n".join(out + ["No functions exceed CC 10.", ""])
     for item in payload["suggestions"]:
@@ -115,7 +132,9 @@ def render_markdown(payload: dict) -> str:
         out += [
             f"### {item['rank']}. `{function}` - `{anchor}`",
             "",
-            f"CC {item['cyclomatic_complexity']} · {item['sloc']} SLOC · mass {item['erosion_mass']:.1f} · {item['share_of_total_mass']:.1%} of total mass",
+            f"CC {item['cyclomatic_complexity']} · {item['sloc']} SLOC · mass {item['erosion_mass']:.1f} · {item['share_of_total_mass']:.1%} of total mass"
+            + (f" · file changes (90d) {item['file_changes_90d']} · priority {item['hotspot_priority']:.1f}"
+               if hotspots else ""),
             "",
         ]
         if item["complexity_drivers"]:
@@ -134,12 +153,16 @@ def render_agent_instructions(payload: dict) -> str:
         "Refactor the ranked offenders below. Preserve behavior; the metric is a tripwire and prioritization signal, not the goal.", "",
         "## Operating discipline",
     ] + [f"- {line}" for line in DISCIPLINE] + ["", "## Ranked worklist"]
+    if payload["selection"].get("ranking") == "hotspot_priority":
+        lines += ["File-level git frequency is only a prioritization hint; it does not show this function changed.", ""]
     for item in items:
         function = _markdown_text(item["function"])
         anchor = _markdown_text(item["anchor"])
         lines += [
             f"### {item['rank']}. {function} ({anchor})",
-            f"Current: CC {item['cyclomatic_complexity']}, {item['sloc']} SLOC, erosion mass {item['erosion_mass']:.1f}.",
+            f"Current: CC {item['cyclomatic_complexity']}, {item['sloc']} SLOC, erosion mass {item['erosion_mass']:.1f}."
+            + (f" File changes (90d): {item['file_changes_90d']}; priority {item['hotspot_priority']:.1f}."
+               if "hotspot_priority" in item else ""),
         ]
         for driver in item["complexity_drivers"][:8]:
             lines.append(f"- Line {driver['line']} `{driver['kind']}`: {driver['hint']}")
