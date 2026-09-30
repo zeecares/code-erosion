@@ -16,6 +16,7 @@ from pathlib import Path
 
 from code_erosion import baseline as baseline_mod
 from code_erosion import history as history_mod
+from code_erosion import hotspots as hotspots_mod
 from code_erosion import suggestions as suggestions_mod
 from code_erosion.core import (
     AstHit,
@@ -349,6 +350,9 @@ def main(argv: list[str] | None = None) -> int:
                         help="Write the ranked suggestions as markdown")
     parser.add_argument("--suggestions-top", type=int, default=5, metavar="N",
                         help="Number of high-CC offenders to suggest (default: 5)")
+    parser.add_argument("--hotspots", action="store_true",
+                        help="Rank suggestions by erosion mass and last 90 days of file-level git changes "
+                             "(opt-in; does not change scores or gate)")
     args = parser.parse_args(argv)
 
     if not args.path.exists():
@@ -363,8 +367,16 @@ def main(argv: list[str] | None = None) -> int:
         print(f"no Python/TypeScript files could be parsed at {args.path}", file=sys.stderr)
         return 2
     report_json = _report_json(report)
+    change_counts = None
+    if args.hotspots:
+        try:
+            change_counts = hotspots_mod.file_change_counts(args.path)
+        except hotspots_mod.HotspotHistoryError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
     suggestions = suggestions_mod.build_suggestions(
-        report_json["corpora"]["production"], top_n=args.suggestions_top
+        report_json["corpora"]["production"], top_n=args.suggestions_top,
+        change_counts=change_counts,
     )
     suggestions_mod.write_outputs(suggestions, args.suggestions_out, args.agent_instructions_out)
     if args.suggestions_markdown_out:

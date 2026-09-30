@@ -426,3 +426,15 @@ data table, runs behavior tests covering all cases and fallback, demonstrates a
 strict erosion reduction, returns `open_draft_pr`, and pins the wrapper's
 `draft: true` handoff. This proves the acceptance plumbing without claiming that
 a deterministic fixture is a model run.
+
+### Optional hotspot worklist
+
+Pass `--hotspots` with `--suggestions-out` (and optionally
+`--suggestions-markdown-out`) to rank high-CC production functions by
+`erosion_mass * max(1, file_changes_90d)`. Change frequency counts
+commits touching the **current file path** in the last 90 days on local `HEAD`.
+It is not function-level change attribution, and renames are not followed.
+No changes in the window still leave the mass as a signal. Shallow checkouts and missing git history fail this opt-in command rather than
+report a misleading rank; a short-lived repo may still have sparse history.
+This is opt-in telemetry, not a new CI gate or an instruction to chase a score.
+Without the flag the existing mass ranking and loop behavior stay unchanged.
